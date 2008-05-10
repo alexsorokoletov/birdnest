@@ -56,7 +56,7 @@ class BaseProxy(webapp.RequestHandler):
 
 class OptimizedProxy(BaseProxy):
   def __init__(self):
-    self.filter = OptimizedFilter()
+    self.filter = Filter()
 
   def sendoutput(self, result):
     if result.status_code == 200:

@@ -6,3 +6,5 @@ api_version: 1
 handlers:
 - url: /api/.*
   script: code.py
+- url: /optimized/.*
+  script: code.py

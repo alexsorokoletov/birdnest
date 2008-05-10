@@ -77,7 +77,7 @@ class IncludeImageProxy(Optimizedy):
 def main():
   application = webapp.WSGIApplication(
                                        [('/api/(.*)', BaseProxy),
-                                       [('/optimized/(.*)', OptimizedProxy),
+                                       ('/optimized/(.*)', OptimizedProxy),
                                        ('/text/(.*)', TextOnlyProxy),
                                        ('/image/(.*)', IncludeImageProxy)],
                                        debug=True)

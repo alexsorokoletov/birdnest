@@ -55,8 +55,8 @@ class BaseProxy(webapp.RequestHandler):
         logging.error("%s \n\n %s \n\n %s " % ( inst, self.request.headers, self.request.body))
 
 class OptimizedProxy(BaseProxy):
-    def __init__(self):
-      self.filter = OptimizedFilter()
+  def __init__(self):
+    self.filter = OptimizedFilter()
 
   def sendoutput(self, result):
     if result.status_code == 200:
@@ -67,12 +67,12 @@ class OptimizedProxy(BaseProxy):
       self.response.out.write('')
     
 class TextOnlyProxy(Optimizedy):
-    def __init__(self):
-      self.filter = TextOnlyFilter()
+  def __init__(self):
+    self.filter = TextOnlyFilter()
 
 class IncludeImageProxy(Optimizedy):
-    def __init__(self):
-      self.filter = IncludeImageFilter()
+  def __init__(self):
+    self.filter = IncludeImageFilter()
 
 def main():
   application = webapp.WSGIApplication(

@@ -66,11 +66,11 @@ class OptimizedProxy(BaseProxy):
       self.error(result.status_code)
       self.response.out.write('')
     
-class TextOnlyProxy(Optimizedy):
+class TextOnlyProxy(OptimizedProxy):
   def __init__(self):
     self.filter = TextOnlyFilter()
 
-class IncludeImageProxy(Optimizedy):
+class IncludeImageProxy(OptimizedProxy):
   def __init__(self):
     self.filter = IncludeImageFilter()
 

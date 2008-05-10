@@ -56,6 +56,7 @@ class BaseProxy(webapp.RequestHandler):
 
 class OptimizedProxy(BaseProxy):
   def __init__(self):
+    BaseProxy.__init__(self)
     self.filter = Filter()
 
   def sendoutput(self, result):
@@ -68,10 +69,12 @@ class OptimizedProxy(BaseProxy):
     
 class TextOnlyProxy(OptimizedProxy):
   def __init__(self):
+    OptimizedProxy.__init__(self)
     self.filter = TextOnlyFilter()
 
 class IncludeImageProxy(OptimizedProxy):
   def __init__(self):
+    OptimizedProxy.__init__(self)
     self.filter = IncludeImageFilter()
 
 def main():

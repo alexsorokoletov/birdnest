@@ -30,3 +30,23 @@ class StatusesTextOnly(Filter):
       for key in unwanted_user:
         del status['user'][key]
     return simplejson.dumps(statuses)
+
+class DirectMessageIncludeImage(Filter):
+  def filter(self, text):
+    directmessages = simplejson.loads(text)
+    for dm in directmessages:
+      sender = dm['sender']
+      recipient = dm['recipient']
+      dm['sender']  = dm['recipient'] = {}
+      dm['sender']['profile_image_url'] = sender['profile_image_url']
+      dm['recipient']['profile_image_url'] = recipient['profile_image_url']
+    return simplejson.dumps(directmessages)
+
+class DirectMessageTextOnly(Filter):
+  def filter(self, text):
+    unwanted_dm = ['sender', 'recipient']
+    directmessages = simplejson.loads(text)
+    for dm in directmessages:
+      for key in unwanted_dm:
+        del dm[key]
+    return simplejson.dumps(directmessages)

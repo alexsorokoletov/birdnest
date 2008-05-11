@@ -51,6 +51,8 @@ class OptimizedProxy(BaseProxy):
     if result.status_code == 200:
       self.response.headers = result.headers
       self.response.out.write(self.filter(result.content))
+    elif result.status_code == 304:
+      self.response.headers = result.headers
     else:
       self.error(result.status_code)
       self.response.out.write('')

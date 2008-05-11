@@ -6,6 +6,7 @@ from google.appengine.ext import webapp
 
 from birdnest import filter
 from birdnest.filter import json
+from birdnest.filter import XML
 
 twitterAPI = "http://twitter.com/"
 
@@ -60,43 +61,41 @@ class OptimizedProxy(BaseProxy):
       self.error(result.status_code)
       self.response.out.write('')
     
-class TextOnlyProxy(OptimizedProxy):
-  def __init__(self):
-    OptimizedProxy.__init__(self)
-
-class IncludeImageProxy(OptimizedProxy):
-  def __init__(self):
-    OptimizedProxy.__init__(self)
-
 class NoFilterProxy(BaseProxy, filter.Filter):
   pass
 
 class NoFilterOptimizedProxy(OptimizedProxy, filter.Filter):
   pass
 
-class JSONStatusesIncludeImageProxy(TextOnlyProxy, json.StatusesIncludeImage):
+class JSONStatusesIncludeImageProxy(OptimizedProxy, json.StatusesIncludeImage):
   pass
 
-class JSONStatusesTextOnlyProxy(TextOnlyProxy, json.StatusesTextOnly):
+class JSONStatusesTextOnlyProxy(OptimizedProxy, json.StatusesTextOnly):
   pass
 
-class JSONSingleStatusesIncludeImageProxy(TextOnlyProxy, json.SingleStatusesIncludeImage):
+class JSONSingleStatusesIncludeImageProxy(OptimizedProxy, json.SingleStatusesIncludeImage):
   pass
 
-class JSONSingleStatusesTextOnlyProxy(TextOnlyProxy, json.SingleStatusesTextOnly):
+class JSONSingleStatusesTextOnlyProxy(OptimizedProxy, json.SingleStatusesTextOnly):
   pass
 
 
-class JSONDirectMessageTextOnlyProxy(TextOnlyProxy, json.DirectMessageTextOnly):
+class JSONDirectMessageTextOnlyProxy(OptimizedProxy, json.DirectMessageTextOnly):
   pass
 
-class JSONDirectMessageIncludeImageProxy(TextOnlyProxy, json.DirectMessageIncludeImage):
+class JSONDirectMessageIncludeImageProxy(OptimizedProxy, json.DirectMessageIncludeImage):
   pass
 
-class JSONSingleDirectMessageTextOnlyProxy(TextOnlyProxy, json.SingleDirectMessageTextOnly):
+class JSONSingleDirectMessageTextOnlyProxy(OptimizedProxy, json.SingleDirectMessageTextOnly):
   pass
 
-class JSONSingleDirectMessageIncludeImageProxy(TextOnlyProxy, json.SingleDirectMessageIncludeImage):
+class JSONSingleDirectMessageIncludeImageProxy(OptimizedProxy, json.SingleDirectMessageIncludeImage):
+  pass
+
+class XMLStatusesIncludeImageProxy(OptimizedProxy, XML.StatusesIncludeImage):
+  pass
+
+class XMLStatusesTextOnlyProxy(OptimizedProxy, XML.StatusesTextOnly):
   pass
 
 def main():
@@ -105,10 +104,14 @@ def main():
 
     ('/optimized/(.*)', NoFilterOptimizedProxy),
 
-    ('/text/(public_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/public_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/public_timeline\.xml)', XMLStatusesTextOnlyProxy),
     ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/user_timeline\.xml)', XMLStatusesTextOnlyProxy),
     ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/friends_timeline\.xml)', XMLStatusesTextOnlyProxy),
     ('/text/(statuses/replies\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/replies\.xml)', XMLStatusesTextOnlyProxy),
     ('/text/(statuses/update\.json)', JSONSingleStatusesTextOnlyProxy),
     ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/sent\.json)', JSONDirectMessageTextOnlyProxy),
@@ -116,10 +119,14 @@ def main():
     ('/text/(direct_messages/delete/\d+\.json)', JSONSingleDirectMessageTextOnlyProxy),
     ('/text/(.*)', NoFilterOptimizedProxy),
 
-    ('/image/(public_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/public_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/public_timeline\.xml)', XMLStatusesIncludeImageProxy),
     ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/user_timeline\.xml)', XMLStatusesIncludeImageProxy),
     ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/friends_timeline\.xml)', XMLStatusesIncludeImageProxy),
     ('/image/(statuses/replies\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/replies\.xml)', XMLStatusesIncludeImageProxy),
     ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),

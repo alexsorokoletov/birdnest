@@ -1,5 +1,5 @@
 import types
-
+import logging
 from django.utils import simplejson
 from birdnest.filter import Filter
 
@@ -50,3 +50,22 @@ class DirectMessageTextOnly(Filter):
       for key in unwanted_dm:
         del dm[key]
     return simplejson.dumps(directmessages)
+
+class SingleDirectMessageIncludeImage(Filter):
+  def filter(self, text):
+    dm = simplejson.loads(text)
+    sender = dm['sender']
+    recipient = dm['recipient']
+    dm['sender']  = dm['recipient'] = {}
+    dm['sender']['profile_image_url'] = sender['profile_image_url']
+    dm['recipient']['profile_image_url'] = recipient['profile_image_url']
+    return simplejson.dumps(dm)
+
+
+class SingleDirectMessageTextOnly(Filter):
+  def filter(self, text):
+    unwanted_dm = ['sender', 'recipient']
+    dm = simplejson.loads(text)
+    for key in unwanted_dm:
+        del dm[key]
+    return simplejson.dumps(dm)

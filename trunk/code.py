@@ -50,6 +50,8 @@ class OptimizedProxy(BaseProxy):
 
   def sendoutput(self, result):
     logging.info(self.filter)
+    logging.info(result.content)
+
     if result.status_code == 200:
       self.response.headers = result.headers
       self.response.out.write(self.filter(result.content))
@@ -80,6 +82,13 @@ class JSONStatusesIncludeImageProxy(TextOnlyProxy, json.StatusesIncludeImage):
 class JSONStatusesTextOnlyProxy(TextOnlyProxy, json.StatusesTextOnly):
   pass
 
+class JSONSingleStatusesIncludeImageProxy(TextOnlyProxy, json.SingleStatusesIncludeImage):
+  pass
+
+class JSONSingleStatusesTextOnlyProxy(TextOnlyProxy, json.SingleStatusesTextOnly):
+  pass
+
+
 class JSONDirectMessageTextOnlyProxy(TextOnlyProxy, json.DirectMessageTextOnly):
   pass
 
@@ -99,6 +108,8 @@ def main():
     ('/text/(public_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/update\.json)', JSONSingleStatusesTextOnlyProxy),
     ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/sent\.json)', JSONDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/new\.json)', JSONSingleDirectMessageTextOnlyProxy),
@@ -108,6 +119,7 @@ def main():
     ('/image/(public_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/new\.json)', JSONSingleDirectMessageIncludeImageProxy),

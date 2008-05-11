@@ -76,14 +76,18 @@ class JSONStatusesTextOnlyProxy(TextOnlyProxy, json.StatusesTextOnly):
   pass
 
 def main():
-  application = webapp.WSGIApplication(
-                                       [('/api/(.*)', NoFilterProxy),
-                                       ('/optimized/(.*)', NoFilterOptimizedProxy),
-                                       ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
-                                       ('/text/(.*)', NoFilterOptimizedProxy),
-                                       ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
-                                       ('/image/(.*)', NoFilterOptimizedProxy)],
-                                       debug=True)
+  application = webapp.WSGIApplication([
+    ('/api/(.*)', NoFilterProxy),
+    ('/optimized/(.*)', NoFilterOptimizedProxy),
+    ('/text/(public_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(.*)', NoFilterOptimizedProxy),
+    ('/image/(public_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(.*)', NoFilterOptimizedProxy)],
+    debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 
 if __name__ == "__main__":

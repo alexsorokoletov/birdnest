@@ -33,6 +33,7 @@ class BaseProxy(webapp.RequestHandler):
       self.response.out.write(result.content)
 
   def post(self, params):
+    result = None
     url = twitterAPI + params
     headers = {}
     for header in self.required_header:
@@ -42,8 +43,11 @@ class BaseProxy(webapp.RequestHandler):
       result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
       self.sendoutput(result)
     except Exception, inst:
-        self.error(500)
+      self.error(500)
+      if result:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % ( inst, self.request.headers, self.request.body, result.content))
+      else:
+        logging.error("%s \n\n %s \n\n %s" % ( inst, self.request.headers, self.request.body))
 
 class OptimizedProxy(BaseProxy):
   def __init__(self):

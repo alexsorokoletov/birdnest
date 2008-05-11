@@ -7,7 +7,8 @@ class StatusesIncludeImage(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id', 'favorited']
-    unwanted_user = ['description', 'followers_count', 'protected']
+    unwanted_user = ['description', 'followers_count', 'protected',
+                     'location']
     statuses = simplejson.loads(text)
     for status in statuses:
       for key in unwanted_status:
@@ -21,7 +22,7 @@ class StatusesTextOnly(Filter):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id', 'favorited']
     unwanted_user = ['description', 'followers_count', 'protected',
-                     'profile_image_url']
+                     'location', 'profile_image_url']
     statuses = simplejson.loads(text)
     for status in statuses:
       for key in unwanted_status:

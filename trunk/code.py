@@ -75,6 +75,12 @@ class JSONStatusesIncludeImageProxy(TextOnlyProxy, json.StatusesIncludeImage):
 class JSONStatusesTextOnlyProxy(TextOnlyProxy, json.StatusesTextOnly):
   pass
 
+class JSONDirectMessageTextOnlyProxy(TextOnlyProxy, json.DirectMessageTextOnly):
+  pass
+
+class JSONDirectMessageIncludeImageProxy(TextOnlyProxy, json.DirectMessageIncludeImage):
+  pass
+
 def main():
   application = webapp.WSGIApplication([
     ('/api/(.*)', NoFilterProxy),
@@ -82,10 +88,12 @@ def main():
     ('/text/(public_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
     ('/text/(.*)', NoFilterOptimizedProxy),
     ('/image/(public_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(.*)', NoFilterOptimizedProxy)],
     debug=True)
   wsgiref.handlers.CGIHandler().run(application)

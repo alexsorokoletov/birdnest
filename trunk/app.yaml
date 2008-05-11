@@ -12,3 +12,6 @@ handlers:
   script: code.py
 - url: /image/.*
   script: code.py
+- url: /
+  static_files: index.html
+  upload: index.html

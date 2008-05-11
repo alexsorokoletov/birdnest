@@ -49,8 +49,6 @@ class OptimizedProxy(BaseProxy):
     BaseProxy.__init__(self)
 
   def sendoutput(self, result):
-    logging.info(self.filter)
-    logging.info(result.content)
 
     if result.status_code == 200:
       self.response.headers = result.headers
@@ -58,7 +56,6 @@ class OptimizedProxy(BaseProxy):
     elif result.status_code == 304:
       self.response.headers = result.headers
     else:
-      logging.info(result.content)
       self.error(result.status_code)
       self.response.out.write('')
     

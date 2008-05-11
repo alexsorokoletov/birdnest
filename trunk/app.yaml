@@ -8,3 +8,7 @@ handlers:
   script: code.py
 - url: /optimized/.*
   script: code.py
+- url: /text/.*
+  script: code.py
+- url: /image/.*
+  script: code.py

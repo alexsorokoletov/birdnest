@@ -3,23 +3,13 @@ import logging
 from google.appengine.api import urlfetch
 from google.appengine.ext import webapp
 
+from birdnest import filter
+from birdnest.filter import json
+
 twitterAPI = "http://twitter.com/"
-
-class Filter():
-  def filter(self, returnText, method):
-    pass
-
-class IncludeImageFilter(Filter):
-  def filter(self, returnText, method):
-    pass
-
-class TextOnlyFilter(IncludeImageFilter):
-  def filter(self, returnText, method):
-    pass
 
 class BaseProxy(webapp.RequestHandler):
   def __init__(self):
-    self.filter = Filter()
     self.required_header = ['Authorization', 'User-Agent', 'X-Twitter-Client', 'X-Twitter-Client-URL', 'X-Twitter-Client-Version']
 
   def get(self, params):    
@@ -35,12 +25,11 @@ class BaseProxy(webapp.RequestHandler):
   def sendoutput(self, result):
     if result.status_code == 200:
       self.response.headers = result.headers
-      self.response.out.write(result.content)
+      self.response.out.write(self.filter(result.content))
     else:
       self.error(result.status_code)
       self.response.out.write(result.content)
-    
-    
+
   def post(self, params):
     url = twitterAPI + params
     headers = {}
@@ -57,12 +46,11 @@ class BaseProxy(webapp.RequestHandler):
 class OptimizedProxy(BaseProxy):
   def __init__(self):
     BaseProxy.__init__(self)
-    self.filter = Filter()
 
   def sendoutput(self, result):
     if result.status_code == 200:
       self.response.headers = result.headers
-      self.response.out.write(result.content)
+      self.response.out.write(self.filter(result.content))
     else:
       self.error(result.status_code)
       self.response.out.write('')
@@ -70,19 +58,31 @@ class OptimizedProxy(BaseProxy):
 class TextOnlyProxy(OptimizedProxy):
   def __init__(self):
     OptimizedProxy.__init__(self)
-    self.filter = TextOnlyFilter()
 
 class IncludeImageProxy(OptimizedProxy):
   def __init__(self):
     OptimizedProxy.__init__(self)
-    self.filter = IncludeImageFilter()
+
+class NoFilterProxy(BaseProxy, filter.Filter):
+  pass
+
+class NoFilterOptimizedProxy(OptimizedProxy, filter.Filter):
+  pass
+
+class JSONStatusesIncludeImageProxy(TextOnlyProxy, json.StatusesIncludeImage):
+  pass
+
+class JSONStatusesTextOnlyProxy(TextOnlyProxy, json.StatusesTextOnly):
+  pass
 
 def main():
   application = webapp.WSGIApplication(
-                                       [('/api/(.*)', BaseProxy),
-                                       ('/optimized/(.*)', OptimizedProxy),
-                                       ('/text/(.*)', TextOnlyProxy),
-                                       ('/image/(.*)', IncludeImageProxy)],
+                                       [('/api/(.*)', NoFilterProxy),
+                                       ('/optimized/(.*)', NoFilterOptimizedProxy),
+                                       ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+                                       ('/text/(.*)', NoFilterOptimizedProxy),
+                                       ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+                                       ('/image/(.*)', NoFilterOptimizedProxy)],
                                        debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 

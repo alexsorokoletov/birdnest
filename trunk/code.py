@@ -104,11 +104,14 @@ class JSONSingleDirectMessageIncludeImageProxy(TextOnlyProxy, json.SingleDirectM
 def main():
   application = webapp.WSGIApplication([
     ('/api/(.*)', NoFilterProxy),
+
     ('/optimized/(.*)', NoFilterOptimizedProxy),
+
     ('/text/(public_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
+    ('/text/(statuses/replies\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/update\.json)', JSONSingleStatusesTextOnlyProxy),
     ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/sent\.json)', JSONDirectMessageTextOnlyProxy),
@@ -119,6 +122,7 @@ def main():
     ('/image/(public_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
+    ('/image/(statuses/reply\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),

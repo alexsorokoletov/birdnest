@@ -8,8 +8,6 @@ from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
-logging.getLogger().setLevel(logging.DEBUG)
-
 twitterAPI = "http://twitter.com/"
 
 class BaseProxy(webapp.RequestHandler):
@@ -53,12 +51,32 @@ class BaseProxy(webapp.RequestHandler):
     try:
       result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
       self.sendoutput(result)
+    except urlfetch.InvalidURLError, why:
+      self.error(500)
+      logging.error("InvalidURLError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.DownloadError, why:
+      self.error(500)
+      logging.error("DownloadError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.ResponseTooLargeError, why:
+      self.error(500)
+      logging.error("ResponseTooLargeError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.Error, why:
+      self.error(500)
+      logging.error("urlfetch.Error %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
     except Exception, inst:
       self.error(500)
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % ( inst, self.request.headers, self.request.body, result.content))
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
       else:
-        logging.error("%s \n\n %s \n\n %s" % ( inst, self.request.headers, self.request.body))
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
 
 class OptimizedProxy(BaseProxy):
 

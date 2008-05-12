@@ -52,22 +52,22 @@ class BaseProxy(webapp.RequestHandler):
       result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
       self.sendoutput(result)
     except urlfetch.InvalidURLError, why:
-      self.error(500)
+      self.error(400)
       logging.error("InvalidURLError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
     except urlfetch.DownloadError, why:
-      self.error(500)
+      self.error(504)
       logging.error("DownloadError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
     except urlfetch.ResponseTooLargeError, why:
-      self.error(500)
+      self.error(413)
       logging.error("ResponseTooLargeError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
     except urlfetch.Error, why:
-      self.error(500)
+      self.error(502)
       logging.error("urlfetch.Error %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))

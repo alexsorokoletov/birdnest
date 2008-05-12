@@ -8,18 +8,31 @@ from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
+logging.getLogger().setLevel(logging.DEBUG)
+
 twitterAPI = "http://twitter.com/"
 
 class BaseProxy(webapp.RequestHandler):
-  def __init__(self):
-    self.required_header = ['Authorization', 'User-Agent', 'X-Twitter-Client', 'X-Twitter-Client-URL', 'X-Twitter-Client-Version']
 
-  def get(self, params):    
-    url = twitterAPI + params
+  required_header = ['Authorization',
+                     'User-Agent',
+                     'X-Twitter-Client',
+                     'X-Twitter-Client-URL',
+                     'X-Twitter-Client-Version']
+
+  def __init__(self):
+    pass
+
+  def _get_headers(self):
     headers = {}
     for header in self.required_header:
       if self.request.headers.has_key(header):
         headers[header] = self.request.headers[header]
+    return headers
+
+  def get(self, params):    
+    url = twitterAPI + params
+    headers = self._get_headers()
 
     result = urlfetch.fetch(url, headers=headers)
     self.sendoutput(result)
@@ -35,10 +48,8 @@ class BaseProxy(webapp.RequestHandler):
   def post(self, params):
     result = None
     url = twitterAPI + params
-    headers = {}
-    for header in self.required_header:
-      if self.request.headers.has_key(header):
-        headers[header] = self.request.headers[header]
+    headers = self._get_headers()
+
     try:
       result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
       self.sendoutput(result)
@@ -50,11 +61,18 @@ class BaseProxy(webapp.RequestHandler):
         logging.error("%s \n\n %s \n\n %s" % ( inst, self.request.headers, self.request.body))
 
 class OptimizedProxy(BaseProxy):
+
+  user_agent = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
+
   def __init__(self):
     BaseProxy.__init__(self)
 
-  def sendoutput(self, result):
+  def _get_headers(self):
+    headers = BaseProxy._get_headers(self)
+    headers['User-Agent'] = self.user_agent
+    return headers
 
+  def sendoutput(self, result):
     if result.status_code == 200:
       self.response.headers = result.headers
       self.response.out.write(self.filter(result.content))

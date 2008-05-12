@@ -59,7 +59,6 @@ class SingleStatusesIncludeImage(Filter):
     unwanted_user = ['description', 'followers_count', 'protected',
                      'location']
     status = simplejson.loads(text)
-    logging.info(status)
     for key in unwanted_status:
       del status[key]
     for key in unwanted_user:

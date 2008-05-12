@@ -29,11 +29,46 @@ class BaseProxy(webapp.RequestHandler):
     return headers
 
   def get(self, params):    
+    result = None
     url = twitterAPI + params
     headers = self._get_headers()
 
-    result = urlfetch.fetch(url, headers=headers)
-    self.sendoutput(result)
+    try:
+      for i in range(2):
+        try:
+          result = urlfetch.fetch(url, headers=headers)
+          self.sendoutput(result)
+          break
+        except urlfetch.DownloadError, why:
+          pass
+      if not result:
+        raise urlfetch.DownloadError()
+    except urlfetch.InvalidURLError, why:
+      self.error(400)
+      logging.error("InvalidURLError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.DownloadError, why:
+      self.error(504)
+      logging.error("DownloadError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.ResponseTooLargeError, why:
+      self.error(413)
+      logging.error("ResponseTooLargeError %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except urlfetch.Error, why:
+      self.error(502)
+      logging.error("urlfetch.Error %s", url)
+      logging.error("%s" % self.request.headers)
+      logging.error("%s" % self.request.body.decode('latin-1'))
+    except Exception, inst:
+      self.error(500)
+      if result:
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
+      else:
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
 
   def sendoutput(self, result):
     if result.status_code == 200:

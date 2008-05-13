@@ -73,7 +73,8 @@ class BaseProxy(webapp.RequestHandler):
   def sendoutput(self, result):
     if result.status_code == 200:
       self.response.headers = result.headers
-      self.response.out.write(self.filter(result.content))
+      if len(result.content.strip()) > 0:
+        self.response.out.write(self.filter(result.content))
     else:
       self.error(result.status_code)
       self.response.out.write(result.content)
@@ -129,7 +130,8 @@ class OptimizedProxy(BaseProxy):
   def sendoutput(self, result):
     if result.status_code == 200:
       self.response.headers = result.headers
-      self.response.out.write(self.filter(result.content))
+      if len(result.content.strip()) > 0:
+        self.response.out.write(self.filter(result.content))
     elif result.status_code == 304:
       self.response.headers = result.headers
     else:

@@ -158,7 +158,6 @@ class JSONSingleStatusesIncludeImageProxy(OptimizedProxy, json.SingleStatusesInc
 class JSONSingleStatusesTextOnlyProxy(OptimizedProxy, json.SingleStatusesTextOnly):
   pass
 
-
 class JSONDirectMessageTextOnlyProxy(OptimizedProxy, json.DirectMessageTextOnly):
   pass
 
@@ -182,6 +181,20 @@ class XMLSingleStatusesIncludeImageProxy(OptimizedProxy, XML.SingleStatusesInclu
 
 class XMLSingleStatusesTextOnlyProxy(OptimizedProxy, XML.SingleStatusesTextOnly):
   pass
+
+class XMLDirectMessageTextOnlyProxy(OptimizedProxy, XML.DirectMessageTextOnly):
+  pass
+
+class XMLDirectMessageIncludeImageProxy(OptimizedProxy, XML.DirectMessageIncludeImage):
+  pass
+
+class XMLSingleDirectMessageTextOnlyProxy(OptimizedProxy, XML.SingleDirectMessageTextOnly):
+  pass
+
+class XMLSingleDirectMessageIncludeImageProxy(OptimizedProxy, XML.SingleDirectMessageIncludeImage):
+  pass
+
+
 
 def main():
   application = webapp.WSGIApplication([
@@ -219,9 +232,16 @@ def main():
     ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(statuses/update\.xml)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
+    ('/image/(direct_messages\.xml)', XMLDirectMessageIncludeImageProxy),
+
     ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),
+    ('/image/(direct_messages/sent\.xml)', XMLDirectMessageIncludeImageProxy),
+
     ('/image/(direct_messages/new\.json)', JSONSingleDirectMessageIncludeImageProxy),
+    ('/image/(direct_messages/new\.xml)', XMLSingleDirectMessageIncludeImageProxy),
+
     ('/image/(direct_messages/delete/\d+\.json)', JSONSingleDirectMessageIncludeImageProxy),
+    ('/image/(direct_messages/delete/\d+\.xml)', XMLSingleDirectMessageIncludeImageProxy),
     ('/image/(.*)', NoFilterOptimizedProxy)],
     debug=True)
   wsgiref.handlers.CGIHandler().run(application)

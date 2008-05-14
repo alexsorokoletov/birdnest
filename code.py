@@ -177,6 +177,12 @@ class XMLStatusesIncludeImageProxy(OptimizedProxy, XML.StatusesIncludeImage):
 class XMLStatusesTextOnlyProxy(OptimizedProxy, XML.StatusesTextOnly):
   pass
 
+class XMLSingleStatusesIncludeImageProxy(OptimizedProxy, XML.SingleStatusesIncludeImage):
+  pass
+
+class XMLSingleStatusesTextOnlyProxy(OptimizedProxy, XML.SingleStatusesTextOnly):
+  pass
+
 def main():
   application = webapp.WSGIApplication([
     ('/api/(.*)', NoFilterProxy),
@@ -192,9 +198,13 @@ def main():
     ('/text/(statuses/replies\.json)', JSONStatusesTextOnlyProxy),
     ('/text/(statuses/replies\.xml)', XMLStatusesTextOnlyProxy),
     ('/text/(statuses/update\.json)', JSONSingleStatusesTextOnlyProxy),
+    ('/text/(statuses/update\.xml)', XMLSingleStatusesTextOnlyProxy),
     ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
+    ('/text/(direct_messages\.xml)', JSONDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/sent\.json)', JSONDirectMessageTextOnlyProxy),
+    ('/text/(direct_messages/sent\.xml)', XMLDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/new\.json)', JSONSingleDirectMessageTextOnlyProxy),
+    ('/text/(direct_messages/new\.xml)', XMLSingleDirectMessageTextOnlyProxy),
     ('/text/(direct_messages/delete/\d+\.json)', JSONSingleDirectMessageTextOnlyProxy),
     ('/text/(.*)', NoFilterOptimizedProxy),
 
@@ -207,6 +217,7 @@ def main():
     ('/image/(statuses/replies\.json)', JSONStatusesIncludeImageProxy),
     ('/image/(statuses/replies\.xml)', XMLStatusesIncludeImageProxy),
     ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
+    ('/image/(statuses/update\.xml)', JSONSingleStatusesIncludeImageProxy),
     ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),
     ('/image/(direct_messages/new\.json)', JSONSingleDirectMessageIncludeImageProxy),

@@ -46,31 +46,31 @@ class BaseProxy(webapp.RequestHandler):
       if not result:
         raise urlfetch.DownloadError()
     except urlfetch.InvalidURLError, why:
-      self.error(400)
       logging.error("InvalidURLError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(400)
     except urlfetch.DownloadError, why:
-      self.error(504)
       logging.error("DownloadError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(504)
     except urlfetch.ResponseTooLargeError, why:
-      self.error(413)
       logging.error("ResponseTooLargeError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(413)
     except urlfetch.Error, why:
-      self.error(502)
       logging.error("urlfetch.Error %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(502)
     except Exception, inst:
-      self.error(500)
       if result:
         logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
       else:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
+      self.error(500)
 
   def sendoutput(self, result):
     if result.status_code == 200:
@@ -90,31 +90,31 @@ class BaseProxy(webapp.RequestHandler):
       result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
       self.sendoutput(result)
     except urlfetch.InvalidURLError, why:
-      self.error(400)
       logging.error("InvalidURLError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(400)
     except urlfetch.DownloadError, why:
-      self.error(504)
       logging.error("DownloadError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(504)
     except urlfetch.ResponseTooLargeError, why:
-      self.error(413)
       logging.error("ResponseTooLargeError %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(413)
     except urlfetch.Error, why:
-      self.error(502)
       logging.error("urlfetch.Error %s", url)
       logging.error("%s" % self.request.headers)
       logging.error("%s" % self.request.body.decode('latin-1'))
+      self.error(502)
     except Exception, inst:
-      self.error(500)
       if result:
         logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
       else:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
+      self.error(500)
 
 class OptimizedProxy(BaseProxy):
 

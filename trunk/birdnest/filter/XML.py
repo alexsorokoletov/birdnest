@@ -54,65 +54,113 @@ class StatusesTextOnly(Filter):
 
 class SingleStatusesIncludeImage(Filter):
   def filter(self, text):
-    unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
-    unwanted_user = ['description', 'followers_count', 'protected',
-                     'location']
-    status = simplejson.loads(text)
-    for key in unwanted_status:
-      del status[key]
-    for key in unwanted_user:
-      del status['user'][key]
-    return simplejson.dumps(status)
+    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_user = ['id', 'name', 'screen_name', 'profile_image_url', 'url']
+    root = ET.fromstring(text)
+    status = root.find('status')
+    builder.start('status', {})
+    for tag in wanted_status:
+        copy_element(builder, status, tag)
+
+    user = status.find('user')
+    builder.start('user', {})
+    for tag in wanted_user:
+      copy_element(builder, user, tag)
+    builder.end('user')
+
+    builder.end('status')
+    return ET.tostring(builder.close())
 
 class SingleStatusesTextOnly(Filter):
   def filter(self, text):
-    unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
-    unwanted_user = ['description', 'followers_count', 'protected',
-                     'location', 'profile_image_url']
-    status = simplejson.loads(text)
-    for key in unwanted_status:
-      del status[key]
-    for key in unwanted_user:
-      del status['user'][key]
-    return simplejson.dumps(status)
+    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_user = ['id', 'name', 'screen_name', 'url']
+    root = ET.fromstring(text)
+    status = root.find('status')
+    logging.info(status)
+    builder.start('status', {})
+    for tag in wanted_status:
+        copy_element(builder, status, tag)
+
+    user = status.find('user')
+    builder.start('user', {})
+    for tag in wanted_user:
+      copy_element(builder, user, tag)
+    builder.end('user')
+    builder.end('status')
+    return ET.tostring(builder.close(), 'UTF-8')
 
 class DirectMessageIncludeImage(Filter):
   def filter(self, text):
-    directmessages = simplejson.loads(text)
-    for dm in directmessages:
-      sender = dm['sender']
-      recipient = dm['recipient']
-      dm['sender']  = dm['recipient'] = {}
-      dm['sender']['profile_image_url'] = sender['profile_image_url']
-      dm['recipient']['profile_image_url'] = recipient['profile_image_url']
-    return simplejson.dumps(directmessages)
+    wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
+    root = ET.fromstring(text)
+    builder = ET.TreeBuilder()
+    builder.start('direct-messages', {'type': 'array'})
+    for status in root.findall('direct_message'):
+      builder.start('direct_message', {})
+      for tag in wanted_status:
+        copy_element(builder, status, tag)
+
+      sender = status.find('sender')
+      builder.start('sender', {})
+      copy_element(builder, sender, 'profile_image_url')
+      builder.end('sender')
+
+      recipient = status.find('recipient')
+      builder.start('recipient', {})
+      copy_element(builder, recipient, 'profile_image_url')
+      builder.end('recipient')
+
+      builder.end('direct_message')
+    builder.end('direct-messages')
+    return ET.tostring(builder.close())
 
 class DirectMessageTextOnly(Filter):
   def filter(self, text):
-    unwanted_dm = ['sender', 'recipient']
-    directmessages = simplejson.loads(text)
-    for dm in directmessages:
-      for key in unwanted_dm:
-        del dm[key]
-    return simplejson.dumps(directmessages)
+    wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
+    root = ET.fromstring(text)
+    builder = ET.TreeBuilder()
+    builder.start('direct-messages', {'type': 'array'})
+    for dm in root.findall('direct_message'):
+      builder.start('direct_message', {})
+      for tag in wanted_dm:
+        copy_element(builder, dm, tag)
+      builder.end('direct_message')
+    builder.end('direct-messages')
+    return ET.tostring(builder.close())
 
 class SingleDirectMessageIncludeImage(Filter):
   def filter(self, text):
-    dm = simplejson.loads(text)
-    sender = dm['sender']
-    recipient = dm['recipient']
-    dm['sender']  = dm['recipient'] = {}
-    dm['sender']['profile_image_url'] = sender['profile_image_url']
-    dm['recipient']['profile_image_url'] = recipient['profile_image_url']
-    return simplejson.dumps(dm)
+    wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
+    root = ET.fromstring(text)
+    dm = root.find('direct_message')
+    builder = ET.TreeBuilder()
+    builder.start('direct_message', {})
+    for tag in wanted_dm:
+      copy_element(builder, dm, tag)
+
+    sender = status.find('sender')
+    builder.start('sender', {})
+    copy_element(builder, sender, 'profile_image_url')
+    builder.end('sender')
+
+    recipient = status.find('recipient')
+    builder.start('recipient', {})
+    copy_element(builder, recipient, 'profile_image_url')
+    builder.end('recipient')
+
+    builder.end('direct_message')
+    return ET.tostring(builder.close())
 
 
 class SingleDirectMessageTextOnly(Filter):
   def filter(self, text):
-    unwanted_dm = ['sender', 'recipient']
-    dm = simplejson.loads(text)
-    for key in unwanted_dm:
-        del dm[key]
-    return simplejson.dumps(dm)
+    wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
+    root = ET.fromstring(text)
+    dm = root.find('direct_message')
+    builder = ET.TreeBuilder()
+    builder.start('direct_message', {})
+    for tag in wanted_dm:
+      copy_element(builder, dm, tag)
+    builder.end('direct_message')
+    return ET.tostring(builder.close())

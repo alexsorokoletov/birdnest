@@ -31,6 +31,8 @@ class BaseProxy(webapp.RequestHandler):
   def get(self, params):    
     result = None
     url = twitterAPI + params
+    if self.request.query_string:
+      url += '?' + self.request.query_string
     headers = self._get_headers()
 
     try:

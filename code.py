@@ -1,16 +1,15 @@
-import wsgiref.handlers
 import logging
 import traceback
-from google.appengine.api import urlfetch
-from google.appengine.ext import webapp
-
+import web
+import sys
+import httplib
 from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
 twitterAPI = "http://twitter.com/"
 
-class BaseProxy(webapp.RequestHandler):
+class BaseProxy():
 
   required_header = ['Authorization',
                      'User-Agent',
@@ -23,122 +22,79 @@ class BaseProxy(webapp.RequestHandler):
 
   def _get_headers(self):
     headers = {}
+
     for header in self.required_header:
-      if self.request.headers.has_key(header):
-        headers[header] = self.request.headers[header]
+      # need caching or memoize trick to remember mapped key
+      header_key = 'HTTP_' + header.replace('-','_').upper()
+      if web.ctx.environ.has_key(header_key):
+        headers[header] = web.ctx.environ[header_key]
     return headers
 
-  def get(self, params):    
-    result = None
-    url = twitterAPI + params
-    if self.request.query_string:
-      url += '?' + self.request.query_string
-    headers = self._get_headers()
-
-    try:
-      for i in range(2):
-        try:
-          result = urlfetch.fetch(url, headers=headers)
-          self.sendoutput(result)
-          break
-        except urlfetch.DownloadError, why:
-          pass
-      if not result:
-        raise urlfetch.DownloadError()
-    except urlfetch.InvalidURLError, why:
-      logging.error("InvalidURLError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(400)
-    except urlfetch.DownloadError, why:
-      logging.error("DownloadError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(504)
-    except urlfetch.ResponseTooLargeError, why:
-      logging.error("ResponseTooLargeError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(413)
-    except urlfetch.Error, why:
-      logging.error("urlfetch.Error %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(502)
-    except Exception, inst:
-      if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
-      else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
-      self.error(500)
-
   def sendoutput(self, result):
-    if result.status_code == 200:
-      self.response.headers = result.headers
-      if len(result.content.strip()) > 0:
-        self.response.out.write(self.filter(result.content))
+    content = result.read()
+    if result.status == 200:
+      web.ctx.headers = result.getheaders()
+      if len(content.strip()) > 0:
+        filtered = self.filter(content)
+        web.header('content-length', len(filtered))
+        web.webapi.output(filtered)
     else:
-      self.error(result.status_code)
-      self.response.out.write(result.content)
+      web.ctx.status = str(result.status)
+      web.webapi.output(content)
 
-  def post(self, params):
+  def GET(self, params):    
     result = None
-    url = twitterAPI + params
     headers = self._get_headers()
 
+    target_url = '/' +params 
+    httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
-      result = urlfetch.fetch(url, payload=self.request.body, method=urlfetch.POST, headers=headers)
-      self.sendoutput(result)
-    except urlfetch.InvalidURLError, why:
-      logging.error("InvalidURLError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(400)
-    except urlfetch.DownloadError, why:
-      logging.error("DownloadError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(504)
-    except urlfetch.ResponseTooLargeError, why:
-      logging.error("ResponseTooLargeError %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(413)
-    except urlfetch.Error, why:
-      logging.error("urlfetch.Error %s", url)
-      logging.error("%s" % self.request.headers)
-      logging.error("%s" % self.request.body.decode('latin-1'))
-      self.error(502)
+      httpcon.request('GET', target_url, headers=headers)
+      twitter_response = httpcon.getresponse()
+      self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1'), result.content.decode('latin-1')))
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), self.request.headers, self.request.body.decode('latin-1')))
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data()))
+      self.error(500)
+      
+
+
+  def POST(self, params):
+    result = None
+    target_url = '/' +params 
+    headers = self._get_headers()
+    httpcon = httplib.HTTPConnection('twitter.com', 80)
+    try:
+      httpcon.request('POST', target_url, headers=headers, body=web.data())
+      twitter_response = httpcon.getresponse()
+      self.sendoutput(twitter_response)
+    except Exception, inst:
+      if result:
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data(), twitter_response.read()))
+      else:
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data()))
       self.error(500)
 
 class OptimizedProxy(BaseProxy):
-
   user_agent = None
 
   def __init__(self):
     BaseProxy.__init__(self)
 
-  def _get_headers(self):
-    headers = BaseProxy._get_headers(self)
-    if self.user_agent:
-      headers['User-Agent'] = self.user_agent
-    return headers
-
   def sendoutput(self, result):
-    if result.status_code == 200:
-      self.response.headers = result.headers
-      if len(result.content.strip()) > 0:
-        self.response.out.write(self.filter(result.content))
-    elif result.status_code == 304:
-      self.response.headers = result.headers
+    content = result.read()
+    if result.status == 200:
+      web.ctx.headers = result.getheaders()
+      if len(content.strip()) > 0:
+        filtered = self.filter(content)
+        web.header('content-length', len(filtered))
+        web.webapi.output(filtered)
     else:
-      self.error(result.status_code)
-      self.response.out.write('')
+      web.ctx.status = str(result.status)
+      web.webapi.output('')
+
     
 class NoFilterProxy(BaseProxy, filter.Filter):
   pass
@@ -196,55 +152,60 @@ class XMLSingleDirectMessageIncludeImageProxy(OptimizedProxy, XML.SingleDirectMe
 
 
 
-def main():
-  application = webapp.WSGIApplication([
-    ('/api/(.*)', NoFilterProxy),
+urls  = (
 
-    ('/optimized/(.*)', NoFilterOptimizedProxy),
+    '/api/(.*)', 'NoFilterProxy',
+    '/optimized/(.*)', 'NoFilterOptimizedProxy',
 
-    ('/text/(statuses/public_timeline\.json)', JSONStatusesTextOnlyProxy),
-    ('/text/(statuses/public_timeline\.xml)', XMLStatusesTextOnlyProxy),
-    ('/text/(statuses/user_timeline\.json)', JSONStatusesTextOnlyProxy),
-    ('/text/(statuses/user_timeline\.xml)', XMLStatusesTextOnlyProxy),
-    ('/text/(statuses/friends_timeline\.json)', JSONStatusesTextOnlyProxy),
-    ('/text/(statuses/friends_timeline\.xml)', XMLStatusesTextOnlyProxy),
-    ('/text/(statuses/replies\.json)', JSONStatusesTextOnlyProxy),
-    ('/text/(statuses/replies\.xml)', XMLStatusesTextOnlyProxy),
-    ('/text/(statuses/update\.json)', JSONSingleStatusesTextOnlyProxy),
-    ('/text/(statuses/update\.xml)', XMLSingleStatusesTextOnlyProxy),
-    ('/text/(direct_messages\.json)', JSONDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages\.xml)', JSONDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages/sent\.json)', JSONDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages/sent\.xml)', XMLDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages/new\.json)', JSONSingleDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages/new\.xml)', XMLSingleDirectMessageTextOnlyProxy),
-    ('/text/(direct_messages/delete/\d+\.json)', JSONSingleDirectMessageTextOnlyProxy),
-    ('/text/(.*)', NoFilterOptimizedProxy),
+    '/text/(statuses/public_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/public_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/user_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/user_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/friends_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/friends_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
 
-    ('/image/(statuses/public_timeline\.json)', JSONStatusesIncludeImageProxy),
-    ('/image/(statuses/public_timeline\.xml)', XMLStatusesIncludeImageProxy),
-    ('/image/(statuses/user_timeline\.json)', JSONStatusesIncludeImageProxy),
-    ('/image/(statuses/user_timeline\.xml)', XMLStatusesIncludeImageProxy),
-    ('/image/(statuses/friends_timeline\.json)', JSONStatusesIncludeImageProxy),
-    ('/image/(statuses/friends_timeline\.xml)', XMLStatusesIncludeImageProxy),
-    ('/image/(statuses/replies\.json)', JSONStatusesIncludeImageProxy),
-    ('/image/(statuses/replies\.xml)', XMLStatusesIncludeImageProxy),
-    ('/image/(statuses/update\.json)', JSONSingleStatusesIncludeImageProxy),
-    ('/image/(statuses/update\.xml)', JSONSingleStatusesIncludeImageProxy),
-    ('/image/(direct_messages\.json)', JSONDirectMessageIncludeImageProxy),
-    ('/image/(direct_messages\.xml)', XMLDirectMessageIncludeImageProxy),
+    '/text/(statuses/friends_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/friends_timeline/\w+\.xml.*)', 'XMLStatusesTextOnlyProxy',
 
-    ('/image/(direct_messages/sent\.json)', JSONDirectMessageIncludeImageProxy),
-    ('/image/(direct_messages/sent\.xml)', XMLDirectMessageIncludeImageProxy),
+    '/text/(statuses/replies\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/replies\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/update\.json.*)', 'JSONSingleStatusesTextOnlyProxy',
+    '/text/(statuses/update\.xml.*)', 'XMLSingleStatusesTextOnlyProxy',
+    '/text/(direct_messages\.json.*)', 'JSONDirectMessageTextOnlyProxy',
+    '/text/(direct_messages\.xml.*)', 'JSONDirectMessageTextOnlyProxy',
+    '/text/(direct_messages/sent\.json.*)', 'JSONDirectMessageTextOnlyProxy',
+    '/text/(direct_messages/sent\.xml.*)', 'XMLDirectMessageTextOnlyProxy',
+    '/text/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
+    '/text/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageTextOnlyProxy',
+    '/text/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
+    '/text/(.*)', 'NoFilterOptimizedProxy',
 
-    ('/image/(direct_messages/new\.json)', JSONSingleDirectMessageIncludeImageProxy),
-    ('/image/(direct_messages/new\.xml)', XMLSingleDirectMessageIncludeImageProxy),
+    '/image/(statuses/public_timeline\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/public_timeline\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/user_timeline\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/user_timeline\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/friends_timeline\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/friends_timeline\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/friends_timeline/\w+\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/friends_timeline/\w+\.xml.*)', 'XMLStatusesIncludeImageProxy',
 
-    ('/image/(direct_messages/delete/\d+\.json)', JSONSingleDirectMessageIncludeImageProxy),
-    ('/image/(direct_messages/delete/\d+\.xml)', XMLSingleDirectMessageIncludeImageProxy),
-    ('/image/(.*)', NoFilterOptimizedProxy)],
-    debug=True)
-  wsgiref.handlers.CGIHandler().run(application)
+    '/image/(statuses/replies\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/replies\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/update\.json.*)', 'JSONSingleStatusesIncludeImageProxy',
+    '/image/(statuses/update\.xml.*)', 'JSONSingleStatusesIncludeImageProxy',
+    '/image/(direct_messages\.json.*)', 'JSONDirectMessageIncludeImageProxy',
+    '/image/(direct_messages\.xml.*)', 'XMLDirectMessageIncludeImageProxy',
+    '/image/(direct_messages/sent\.json.*)', 'JSONDirectMessageIncludeImageProxy',
+    '/image/(direct_messages/sent\.xml.*)', 'XMLDirectMessageIncludeImageProxy',
 
-if __name__ == "__main__":
-  main()
+    '/image/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageIncludeImageProxy',
+    '/image/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageIncludeImageProxy',
+
+    '/image/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageIncludeImageProxy',
+    '/image/(direct_messages/delete/\d+\.xml.*)', 'XMLSingleDirectMessageIncludeImageProxy',
+    '/image/(.*)', 'NoFilterOptimizedProxy',
+    '/(.*)', 'BaseProxy',
+    )
+
+web.webapi.internalerror = web.debugerror
+if __name__ == "__main__": web.run(urls, globals(), web.reloader)

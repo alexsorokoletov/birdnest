@@ -6,7 +6,7 @@ from birdnest.filter import Filter
 class StatusesIncludeImage(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
+                       'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
                      'location']
     statuses = simplejson.loads(text)
@@ -20,7 +20,7 @@ class StatusesIncludeImage(Filter):
 class StatusesTextOnly(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
+                       'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
                      'location', 'profile_image_url']
     statuses = simplejson.loads(text)
@@ -34,7 +34,7 @@ class StatusesTextOnly(Filter):
 class SingleStatusesIncludeImage(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
+                       'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
                      'location']
     status = simplejson.loads(text)
@@ -47,7 +47,7 @@ class SingleStatusesIncludeImage(Filter):
 class SingleStatusesTextOnly(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
-                       'in_reply_to_status_id', 'favorited']
+                       'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
                      'location', 'profile_image_url']
     status = simplejson.loads(text)

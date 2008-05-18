@@ -10,7 +10,7 @@ def copy_element(builder, source, tag):
 
 class StatusesIncludeImage(Filter):
   def filter(self, text):
-    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'profile_image_url', 'url']
     root = ET.fromstring(text)
     builder = ET.TreeBuilder()
@@ -32,7 +32,7 @@ class StatusesIncludeImage(Filter):
 
 class StatusesTextOnly(Filter):
   def filter(self, text):
-    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'url']
     root = ET.fromstring(text)
     builder = ET.TreeBuilder()
@@ -54,7 +54,7 @@ class StatusesTextOnly(Filter):
 
 class SingleStatusesIncludeImage(Filter):
   def filter(self, text):
-    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'profile_image_url', 'url']
     root = ET.fromstring(text)
     status = root.find('status')
@@ -73,7 +73,7 @@ class SingleStatusesIncludeImage(Filter):
 
 class SingleStatusesTextOnly(Filter):
   def filter(self, text):
-    wanted_status = ['created_at', 'id', 'text', 'source']
+    wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'url']
     root = ET.fromstring(text)
     status = root.find('status')

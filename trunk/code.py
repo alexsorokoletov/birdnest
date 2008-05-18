@@ -218,5 +218,11 @@ urls  = (
     '/(.*)', 'BaseProxy',
     )
 
+def runfcgi(func, addr=('localhost', 8000)):
+    """Runs a WSGI function as a FastCGI server."""
+    import flup.server.cgi as flups
+    return flups.WSGIServer(func).run()
+web.wsgi.runfcgi = runfcgi
+
 web.webapi.internalerror = web.debugerror
 if __name__ == "__main__": web.run(urls, globals(), web.reloader)

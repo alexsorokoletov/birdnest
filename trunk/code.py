@@ -1,4 +1,6 @@
+#!/usr/bin/env python
 import logging
+import logging.handlers
 import traceback
 import web
 import sys
@@ -7,7 +9,16 @@ from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
+logpath = 'log.txt'
 twitterAPI = "http://twitter.com/"
+rootLogger = logging.getLogger('')
+rootLogger.setLevel(logging.DEBUG)
+formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s : %(pathname)s (%(lineno)d) --- %(message)s', 
+                                              datefmt='%d %b %Y %H:%M:%S')
+fileHandler = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1)
+fileHandler.setFormatter(formatter)
+rootLogger.addHandler(fileHandler)
+
 
 class BaseProxy(object):
 

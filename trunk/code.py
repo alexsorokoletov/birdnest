@@ -9,7 +9,7 @@ from birdnest.filter import XML
 
 twitterAPI = "http://twitter.com/"
 
-class BaseProxy():
+class BaseProxy(object):
 
   required_header = ['Authorization',
                      'User-Agent',

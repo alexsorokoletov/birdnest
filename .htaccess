@@ -1,8 +1,7 @@
 # Various rewrite rules.
 <IfModule mod_rewrite.c>
   RewriteEngine on
-  # Rewrite URLs of the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^(.*)$ cgi-bin/code.py/$1 [L,QSA]
+  RewriteRule ^(.*)$ /cgi-bin/code.py/$1 [L,QSA]
 </IfModule>

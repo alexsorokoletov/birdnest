@@ -39,7 +39,6 @@ class BaseProxy(object):
       header_key = 'HTTP_' + header.replace('-','_').upper()
       if web.ctx.environ.has_key(header_key):
         headers[header] = web.ctx.environ[header_key]
-    #headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     return headers
 
   def sendoutput(self, result):
@@ -97,6 +96,11 @@ class OptimizedProxy(BaseProxy):
 
   def __init__(self):
     BaseProxy.__init__(self)
+
+  def _get_headers(self):
+    headers = BaseProxy._get_headers(self)
+    headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
+    return headers
 
   def sendoutput(self, result):
     content = result.read()

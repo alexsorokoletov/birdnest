@@ -58,6 +58,8 @@ class BaseProxy(object):
     headers = self._get_headers()
 
     target_url = '/' +params 
+    if web.ctx.environ.get('QUERY_STRING', None):
+      target_url += '?'+web.ctx.environ['QUERY_STRING']
     httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
       httpcon.request('GET', target_url, headers=headers)
@@ -224,5 +226,5 @@ def runfcgi(func, addr=('localhost', 8000)):
     return flups.WSGIServer(func).run()
 web.wsgi.runfcgi = runfcgi
 
-web.webapi.internalerror = web.debugerror
+#web.webapi.internalerror = web.debugerror
 if __name__ == "__main__": web.run(urls, globals(), web.reloader)

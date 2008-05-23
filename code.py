@@ -110,6 +110,10 @@ class OptimizedProxy(BaseProxy):
         filtered = self.filter(content)
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
+    elif result.status == 304:
+      web.ctx.headers = result.getheaders()
+      web.ctx.status = str(result.status)
+      web.webapi.output(content)
     else:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)

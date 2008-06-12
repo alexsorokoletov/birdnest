@@ -86,10 +86,10 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data(), twitter_response.read()))
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data()))
-      self.error(500)
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+      web.internalerror()
 
 class OptimizedProxy(BaseProxy):
   user_agent = None
@@ -100,6 +100,11 @@ class OptimizedProxy(BaseProxy):
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
     headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
+    if 'Authorization' not in headers:
+      qs = web.input(__token__=None)
+      if qs['__token__'] is not None:
+        headers['Authorization'] = 'Basic '+qs['__token__']
+    logging.debug(str(headers))
     return headers
 
   def sendoutput(self, result):

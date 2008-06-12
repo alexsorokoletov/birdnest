@@ -68,10 +68,10 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data(), twitter_response.read()))
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (url, str(inst), headers, web.data()))
-      self.error(500)
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+      web.internalerror()
       
 
 

@@ -1,7 +1,14 @@
 import types
 import logging
 from xml.etree import ElementTree as ET
-from birdnest.filter import Filter
+from birdnest.filter import Filter as _Filter
+
+class Filter(_Filter):
+  def error_reason(self, text, reason):
+    return reason
+
+  def error_filter(self, text):
+    return text
 
 def copy_element(builder, source, tag):
   builder.start(tag, {})

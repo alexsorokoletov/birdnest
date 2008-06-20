@@ -122,6 +122,10 @@ class OptimizedProxy(BaseProxy):
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
       web.webapi.output(content)
+    elif result.status == 400:
+      web.ctx.headers = result.getheaders()
+      web.ctx.status = str(result.status)+' '+self.error_reason(content, result.reason)
+      web.webapi.output('')
     elif result.status == 401 or result.status == 403:
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)

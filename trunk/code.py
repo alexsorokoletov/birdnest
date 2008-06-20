@@ -121,21 +121,28 @@ class OptimizedProxy(BaseProxy):
     elif result.status == 304:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
+      web.header('content-length', len(content))
       web.webapi.output(content)
     elif result.status == 400:
       web.ctx.headers = result.getheaders()
-      web.ctx.status = str(result.status)+' '+self.error_reason(content, result.reason)
-      web.webapi.output('')
+      web.ctx.status = str(result.status)+' '+result.reason
+      filtered = self.error_filter(content)
+      web.header('content-length', len(filtered))
+      web.webapi.output(filtered)
     elif result.status == 401 or result.status == 403:
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
-      web.webapi.output('')
+      filtered = ''
+      web.header('content-length', len(filtered))
+      web.webapi.output(filtered)
     else:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
-      web.webapi.output('')
+      filtered = ''
+      web.header('content-length', len(filtered))
+      web.webapi.output(filtered)
 
     
 class NoFilterProxy(BaseProxy, filter.Filter):

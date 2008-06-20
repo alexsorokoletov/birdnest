@@ -137,6 +137,15 @@ class OptimizedProxy(BaseProxy):
       filtered = ''
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
+    elif result.status == 500:
+      logging.debug(result.getheaders())
+      logging.debug(web.ctx.environ)
+      logging.debug(content)
+      web.ctx.headers = result.getheaders()
+      web.ctx.status = str(result.status)+' '+result.reason
+      filtered = ''
+      web.header('content-length', len(filtered))
+      web.webapi.output(filtered)
     else:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason

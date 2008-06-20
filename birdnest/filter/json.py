@@ -1,7 +1,17 @@
 import types
 import logging
 from django.utils import simplejson
-from birdnest.filter import Filter
+from birdnest.filter import Filter as _Filter
+
+class Filter(_Filter):
+  def error_reason(self, text, reason):
+    error = simplejson.loads(text)
+    return error['error']
+
+  def error_filter(self, text):
+    error = simplejson.loads(text)
+    del error['request']
+    return simplejson.dumps(error)
 
 class StatusesIncludeImage(Filter):
   def filter(self, text):

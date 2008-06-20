@@ -5,6 +5,7 @@ import traceback
 import web
 import sys
 import httplib
+import urllib
 from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
@@ -104,6 +105,8 @@ class OptimizedProxy(BaseProxy):
       qs = web.input(__token__=None)
       if qs['__token__'] is not None:
         headers['Authorization'] = 'Basic '+qs['__token__']
+        del qs['__token__']
+        web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
     logging.debug(str(headers))
     return headers
 

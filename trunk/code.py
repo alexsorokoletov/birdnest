@@ -30,7 +30,14 @@ class BaseProxy(object):
                      'X-Twitter-Client-Version']
 
   def __init__(self):
-    pass
+    data = ''
+    fd = web.ctx.env['wsgi.input']
+    while 1:
+      chunked = fd.read(10000)
+      if not chunked:
+        break
+      data += chunked
+    web.ctx.data = data
 
   def _get_headers(self):
     headers = {}

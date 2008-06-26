@@ -160,6 +160,71 @@ class OptimizedProxy(BaseProxy):
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
 
+
+class JSONTwitPicProxy(BaseProxy, filter.Filter):
+
+  required_header = ['Authorization',
+                     'User-Agent',
+                     'X-Twitter-Client',
+                     'X-Twitter-Client-URL',
+                     'X-Twitter-Client-Version']
+
+  def __init__(self):
+    BaseProxy.__init__(self)
+
+  def _get_headers(self):
+    headers = BaseProxy._get_headers(self)
+    headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
+    return headers
+
+  def parse_response(self, response):
+    from xml.etree import ElementTree as ET
+    root = ET.fromstring(response)
+    return root
+
+  def sendoutput(self, result):
+    import simplejson
+    content = result.read()
+    logging.debug(content)
+    if result.status == 200:
+      web.ctx.headers = result.getheaders()
+      if len(content.strip()) > 0:
+        d = self.parse_response(content)
+        err = d.find('err')
+        if err:
+          reason = '%s %s' % (err.attrib['code'], err.attrib['msg'])
+          response = {'error': reason}
+          web.ctx.status = str(400)+' '+reason
+        else:
+          response = {'id': d.findtext('statusid')}
+        content = simplejson.dumps(response)
+        filtered = self.filter(content)
+        web.header('content-length', len(filtered))
+        web.webapi.output(filtered)
+    else:
+      web.ctx.headers = result.getheaders()
+      web.ctx.status = str(result.status)+' '+result.reason
+      web.webapi.output(content)
+
+  def POST(self, params):
+    result = None
+    target_url = '/' +params 
+    headers = self._get_headers()
+    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    logging.debug(str(headers))
+    #logging.debug(web.data())
+    try:
+      httpcon.request('POST', target_url, headers=headers, body=web.data())
+      twitter_response = httpcon.getresponse()
+      self.sendoutput(twitter_response)
+    except Exception, inst:
+      if result:
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+      else:
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+      web.internalerror()
+
+
     
 class NoFilterProxy(BaseProxy, filter.Filter):
   pass
@@ -243,6 +308,8 @@ urls  = (
     '/text/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
+    '/text/twitpic/(api/uploadAndPost.*)', 'JSONTwitPicProxy',
+
     '/text/(.*)', 'NoFilterOptimizedProxy',
 
     '/image/(statuses/public_timeline\.json.*)', 'JSONStatusesIncludeImageProxy',
@@ -269,6 +336,7 @@ urls  = (
     '/image/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageIncludeImageProxy',
     '/image/(direct_messages/delete/\d+\.xml.*)', 'XMLSingleDirectMessageIncludeImageProxy',
     '/image/(.*)', 'NoFilterOptimizedProxy',
+
     '/(.*)', 'BaseProxy',
     )
 

@@ -191,7 +191,7 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
       if len(content.strip()) > 0:
         d = self.parse_response(content)
         err = d.find('err')
-        if err:
+        if err is not None:
           reason = '%s %s' % (err.attrib['code'], err.attrib['msg'])
           response = {'error': reason}
           web.ctx.status = str(400)+' '+reason

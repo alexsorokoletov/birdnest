@@ -6,6 +6,7 @@ import web
 import sys
 import httplib
 import urllib
+import base64
 from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
@@ -22,7 +23,7 @@ rootLogger.addHandler(fileHandler)
 
 
 class BaseProxy(object):
-
+  
   required_header = ['Authorization',
                      'User-Agent',
                      'X-Twitter-Client',
@@ -32,12 +33,20 @@ class BaseProxy(object):
   def __init__(self):
     data = ''
     fd = web.ctx.env['wsgi.input']
-    while 1:
-      chunked = fd.read(10000)
-      if not chunked:
-        break
-      data += chunked
-    web.ctx.data = data
+    if self._is_post_request():
+      while 1:
+        chunked = fd.read(10000)
+        if not chunked:
+          break
+        data += chunked
+      web.ctx.data = data
+    self.callback_specified = False
+  
+  def _is_post_request(self):
+    if web.ctx.env['REQUEST_METHOD'].upper() != 'POST':
+	    return False
+    content_type = web.ctx.env.get('CONTENT_TYPE', 'application/x-www-form-urlencoded')
+    return (content_type.startswith('application/x-www-form-urlencoded'  or content_type.startswith('multipart/form-data')))
 
   def _get_headers(self):
     headers = {}
@@ -69,6 +78,10 @@ class BaseProxy(object):
     target_url = '/' +params 
     if web.ctx.environ.get('QUERY_STRING', None):
       target_url += '?'+web.ctx.environ['QUERY_STRING']
+    webin = web.input()
+    if webin.has_key('callback'):
+      self.callback_specified = webin.callback
+    logging.info("self.callback_specified %s" % (self.callback_specified))
     httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
       httpcon.request('GET', target_url, headers=headers)
@@ -76,7 +89,7 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))		
       else:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
@@ -114,7 +127,9 @@ class OptimizedProxy(BaseProxy):
         headers['Authorization'] = 'Basic '+qs['__token__']
         del qs['__token__']
         web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
-    logging.debug(str(headers))
+    authorize_string = headers['Authorization']
+    self.user = base64.b64decode(authorize_string[6:])
+    self.user = self.user[:self.user.find(':')]
     return headers
 
   def sendoutput(self, result):
@@ -123,7 +138,13 @@ class OptimizedProxy(BaseProxy):
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
         try:
-          filtered = self.filter(content)
+          if self.callback_specified and content.startswith('%s(' %self.callback_specified):
+            content = content[len(self.callback_specified)+1:-2]
+            stripped = True
+          filtered = self.filter(content, self.user)
+          if stripped:
+            filtered = '%s(%s)' % (self.callback_specified, filtered)
+          logging.debug(filtered)
         except Exception, why:
           logging.debug(str(why))
           filtered = content
@@ -202,7 +223,7 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
         else:
           response = {'id': d.findtext('statusid')}
         content = simplejson.dumps(response)
-        filtered = self.filter(content)
+        filtered = self.filter(content, self.user)
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     else:
@@ -240,6 +261,9 @@ class JSONStatusesIncludeImageProxy(OptimizedProxy, json.StatusesIncludeImage):
   pass
 
 class JSONStatusesTextOnlyProxy(OptimizedProxy, json.StatusesTextOnly):
+  pass
+
+class JSONRepliesStatusesTextOnlyProxy(OptimizedProxy, json.RepliesStatusesTextOnly):
   pass
 
 class JSONSingleStatusesIncludeImageProxy(OptimizedProxy, json.SingleStatusesIncludeImage):
@@ -301,8 +325,9 @@ urls  = (
     '/text/(statuses/friends_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/friends_timeline/\w+\.xml.*)', 'XMLStatusesTextOnlyProxy',
 
-    '/text/(statuses/replies\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/replies\.json.*)', 'JSONRepliesStatusesTextOnlyProxy',
     '/text/(statuses/replies\.xml.*)', 'XMLStatusesTextOnlyProxy',
+
     '/text/(statuses/update\.json.*)', 'JSONSingleStatusesTextOnlyProxy',
     '/text/(statuses/update\.xml.*)', 'XMLSingleStatusesTextOnlyProxy',
     '/text/(direct_messages\.json.*)', 'JSONDirectMessageTextOnlyProxy',

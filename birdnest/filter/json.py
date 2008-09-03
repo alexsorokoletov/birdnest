@@ -12,9 +12,9 @@ class Filter(_Filter):
     error = simplejson.loads(text)
     del error['request']
     return simplejson.dumps(error)
-
+	
 class StatusesIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
@@ -28,7 +28,7 @@ class StatusesIncludeImage(Filter):
     return simplejson.dumps(statuses)
 
 class StatusesTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
@@ -41,8 +41,25 @@ class StatusesTextOnly(Filter):
         del status['user'][key]
     return simplejson.dumps(statuses)
 
+class RepliesStatusesTextOnly(Filter):
+  def filter(self, text, user=None):
+    unwanted_status = ['truncated', 'in_reply_to_user_id',
+                       'in_reply_to_status_id']
+    unwanted_user = ['description', 'followers_count', 'protected',
+                     'location', 'profile_image_url']
+    statuses = simplejson.loads(text)
+    for status in statuses:
+      for key in unwanted_status:
+        del status[key]
+      for key in unwanted_user:
+        del status['user'][key]
+      if user and status['text'].strip().startswith('@%s '% user):
+        status['text'] = status['text'][2+len(user):]
+    return simplejson.dumps(statuses)
+
+	
 class SingleStatusesIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
@@ -55,7 +72,7 @@ class SingleStatusesIncludeImage(Filter):
     return simplejson.dumps(status)
 
 class SingleStatusesTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
@@ -68,7 +85,7 @@ class SingleStatusesTextOnly(Filter):
     return simplejson.dumps(status)
 
 class DirectMessageIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     directmessages = simplejson.loads(text)
     for dm in directmessages:
       sender = dm['sender']
@@ -79,7 +96,7 @@ class DirectMessageIncludeImage(Filter):
     return simplejson.dumps(directmessages)
 
 class DirectMessageTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_dm = ['sender', 'recipient']
     directmessages = simplejson.loads(text)
     for dm in directmessages:
@@ -88,7 +105,7 @@ class DirectMessageTextOnly(Filter):
     return simplejson.dumps(directmessages)
 
 class SingleDirectMessageIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     dm = simplejson.loads(text)
     sender = dm['sender']
     recipient = dm['recipient']
@@ -99,7 +116,7 @@ class SingleDirectMessageIncludeImage(Filter):
 
 
 class SingleDirectMessageTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user=None):
     unwanted_dm = ['sender', 'recipient']
     dm = simplejson.loads(text)
     for key in unwanted_dm:

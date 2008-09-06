@@ -16,7 +16,7 @@ def copy_element(builder, source, tag):
   builder.end(tag)
 
 class StatusesIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'profile_image_url', 'url']
     root = ET.fromstring(text)
@@ -38,7 +38,7 @@ class StatusesIncludeImage(Filter):
     return ET.tostring(builder.close())
 
 class StatusesTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'url']
     root = ET.fromstring(text)
@@ -60,7 +60,7 @@ class StatusesTextOnly(Filter):
     return ET.tostring(builder.close(), 'UTF-8')
 
 class SingleStatusesIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'profile_image_url', 'url']
     root = ET.fromstring(text)
@@ -79,7 +79,7 @@ class SingleStatusesIncludeImage(Filter):
     return ET.tostring(builder.close())
 
 class SingleStatusesTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_status = ['created_at', 'id', 'text', 'source', 'favorited']
     wanted_user = ['id', 'name', 'screen_name', 'url']
     root = ET.fromstring(text)
@@ -98,7 +98,7 @@ class SingleStatusesTextOnly(Filter):
     return ET.tostring(builder.close(), 'UTF-8')
 
 class DirectMessageIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
     root = ET.fromstring(text)
     builder = ET.TreeBuilder()
@@ -123,7 +123,7 @@ class DirectMessageIncludeImage(Filter):
     return ET.tostring(builder.close())
 
 class DirectMessageTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
     root = ET.fromstring(text)
     builder = ET.TreeBuilder()
@@ -137,7 +137,7 @@ class DirectMessageTextOnly(Filter):
     return ET.tostring(builder.close())
 
 class SingleDirectMessageIncludeImage(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
     root = ET.fromstring(text)
     dm = root.find('direct_message')
@@ -161,7 +161,7 @@ class SingleDirectMessageIncludeImage(Filter):
 
 
 class SingleDirectMessageTextOnly(Filter):
-  def filter(self, text):
+  def filter(self, text, user):
     wanted_dm = ['created_at', 'id', 'text', 'source', 'sender_id', 'recipient_id', 'sender_screen_name', 'recipient_screen_name']
     root = ET.fromstring(text)
     dm = root.find('direct_message')

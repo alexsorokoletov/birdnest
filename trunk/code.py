@@ -17,7 +17,7 @@ rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s : %(pathname)s (%(lineno)d) --- %(message)s', 
                                               datefmt='%d %b %Y %H:%M:%S')
-fileHandler = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1)
+fileHandler = logging.FileHandler(logpath)
 fileHandler.setFormatter(formatter)
 rootLogger.addHandler(fileHandler)
 
@@ -63,7 +63,7 @@ class BaseProxy(object):
     if result.status == 200:
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
-        filtered = self.filter(content)
+        filtered = self.filter(content, self.user)
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     else:
@@ -138,6 +138,7 @@ class OptimizedProxy(BaseProxy):
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
         try:
+          stripped = False
           if self.callback_specified and content.startswith('%s(' %self.callback_specified):
             content = content[len(self.callback_specified)+1:-2]
             stripped = True

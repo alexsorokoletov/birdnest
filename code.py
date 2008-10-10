@@ -81,7 +81,6 @@ class BaseProxy(object):
     webin = web.input()
     if webin.has_key('callback'):
       self.callback_specified = webin.callback
-    logging.info("self.callback_specified %s" % (self.callback_specified))
     httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
       httpcon.request('GET', target_url, headers=headers)
@@ -117,6 +116,7 @@ class OptimizedProxy(BaseProxy):
 
   def __init__(self):
     BaseProxy.__init__(self)
+    self.user = None
 
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
@@ -127,9 +127,6 @@ class OptimizedProxy(BaseProxy):
         headers['Authorization'] = 'Basic '+qs['__token__']
         del qs['__token__']
         web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
-    authorize_string = headers['Authorization']
-    self.user = base64.b64decode(authorize_string[6:])
-    self.user = self.user[:self.user.find(':')]
     return headers
 
   def sendoutput(self, result):
@@ -145,7 +142,6 @@ class OptimizedProxy(BaseProxy):
           filtered = self.filter(content, self.user)
           if stripped:
             filtered = '%s(%s)' % (self.callback_specified, filtered)
-          logging.debug(filtered)
         except Exception, why:
           logging.debug(str(why))
           filtered = content
@@ -250,7 +246,20 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
 
-
+class RepliesOptimizedProxy(OptimizedProxy):
+  def _get_headers(self):
+    headers = BaseProxy._get_headers(self)
+    headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
+    if 'Authorization' not in headers:
+      qs = web.input(__token__=None)
+      if qs['__token__'] is not None:
+        headers['Authorization'] = 'Basic '+qs['__token__']
+        del qs['__token__']
+        web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
+    authorize_string = headers['Authorization']
+    self.user = base64.b64decode(authorize_string[6:])
+    self.user = self.user[:self.user.find(':')]
+    return headers
     
 class NoFilterProxy(BaseProxy, filter.Filter):
   pass
@@ -264,7 +273,7 @@ class JSONStatusesIncludeImageProxy(OptimizedProxy, json.StatusesIncludeImage):
 class JSONStatusesTextOnlyProxy(OptimizedProxy, json.StatusesTextOnly):
   pass
 
-class JSONRepliesStatusesTextOnlyProxy(OptimizedProxy, json.RepliesStatusesTextOnly):
+class JSONRepliesStatusesTextOnlyProxy(RepliesOptimizedProxy, json.RepliesStatusesTextOnly):
   pass
 
 class JSONSingleStatusesIncludeImageProxy(OptimizedProxy, json.SingleStatusesIncludeImage):
@@ -316,6 +325,7 @@ urls  = (
     '/api/(.*)', 'NoFilterProxy',
     '/optimized/(.*)', 'NoFilterOptimizedProxy',
 
+    '/text/(statuses/user_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/user_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',

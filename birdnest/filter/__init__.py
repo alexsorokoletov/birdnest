@@ -1,3 +1,4 @@
+import re
 
 class Filter(object):
   def filter(self, text):
@@ -9,3 +10,5 @@ class Filter(object):
   def error_filter(self, text):
     return text
 
+def remove_html(text):
+  return re.sub(r'<.*?>', '', text)

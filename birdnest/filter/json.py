@@ -1,6 +1,7 @@
 import types
 import logging
 import simplejson
+from birdnest.filter import remove_html
 from birdnest.filter import Filter as _Filter
 
 class Filter(_Filter):
@@ -32,13 +33,14 @@ class StatusesTextOnly(Filter):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
-                     'location', 'profile_image_url']
+                     'location', 'profile_image_url', 'url']
     statuses = simplejson.loads(text)
     for status in statuses:
       for key in unwanted_status:
         del status[key]
       for key in unwanted_user:
         del status['user'][key]
+      status['source'] = remove_html(status['source'])
     return simplejson.dumps(statuses)
 
 class SingleStatusesIncludeImage(Filter):
@@ -59,12 +61,13 @@ class SingleStatusesTextOnly(Filter):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
     unwanted_user = ['description', 'followers_count', 'protected',
-                     'location', 'profile_image_url']
+                     'location', 'profile_image_url', 'url']
     status = simplejson.loads(text)
     for key in unwanted_status:
       del status[key]
     for key in unwanted_user:
       del status['user'][key]
+    status['source'] = remove_html(status['source'])
     return simplejson.dumps(status)
 
 class DirectMessageIncludeImage(Filter):

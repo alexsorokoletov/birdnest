@@ -6,7 +6,7 @@ import web
 import sys
 import httplib
 import urllib
-from birdnest import filter
+from birdnest.filter import Filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
@@ -29,6 +29,8 @@ class BaseProxy(object):
                      'X-Twitter-Client-URL',
                      'X-Twitter-Client-Version']
 
+  unwanted_header = []
+
   def __init__(self):
     data = ''
     fd = web.ctx.env['wsgi.input']
@@ -48,6 +50,9 @@ class BaseProxy(object):
       if web.ctx.environ.has_key(header_key):
         headers[header] = web.ctx.environ[header_key]
     return headers
+
+  def _filter_headers(self, headers):
+    return filter(lambda i: i[0].lower() not in self.unwanted_header, headers)
 
   def sendoutput(self, result):
     content = result.read()
@@ -101,6 +106,14 @@ class BaseProxy(object):
 
 class OptimizedProxy(BaseProxy):
   user_agent = None
+  unwanted_header = ['status',
+                     'x-runtime',
+                     'etag',
+                     'pragma',
+                     'cache-control',
+                     'set-cookie',
+                     'vary',
+                     'connection']
 
   def __init__(self):
     BaseProxy.__init__(self)
@@ -120,7 +133,7 @@ class OptimizedProxy(BaseProxy):
   def sendoutput(self, result):
     content = result.read()
     if result.status == 200:
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       if len(content.strip()) > 0:
         try:
           filtered = self.filter(content)
@@ -130,12 +143,12 @@ class OptimizedProxy(BaseProxy):
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     elif result.status == 304:
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       web.header('content-length', len(content))
       web.webapi.output(content)
     elif result.status == 400:
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = self.error_filter(content)
       web.header('content-length', len(filtered))
@@ -143,7 +156,7 @@ class OptimizedProxy(BaseProxy):
     elif result.status == 401 or result.status == 403:
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
@@ -152,20 +165,20 @@ class OptimizedProxy(BaseProxy):
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)
       logging.debug(content)
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
     else:
-      web.ctx.headers = result.getheaders()
+      web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
 
 
-class JSONTwitPicProxy(BaseProxy, filter.Filter):
+class JSONTwitPicProxy(BaseProxy, Filter):
 
   required_header = ['Authorization',
                      'User-Agent',
@@ -230,10 +243,10 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
 
 
     
-class NoFilterProxy(BaseProxy, filter.Filter):
+class NoFilterProxy(BaseProxy, Filter):
   pass
 
-class NoFilterOptimizedProxy(OptimizedProxy, filter.Filter):
+class NoFilterOptimizedProxy(OptimizedProxy, Filter):
   pass
 
 class JSONStatusesIncludeImageProxy(OptimizedProxy, json.StatusesIncludeImage):

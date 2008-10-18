@@ -6,7 +6,6 @@ import web
 import sys
 import httplib
 import urllib
-import base64
 from birdnest import filter
 from birdnest.filter import json
 from birdnest.filter import XML
@@ -17,13 +16,13 @@ rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s : %(pathname)s (%(lineno)d) --- %(message)s', 
                                               datefmt='%d %b %Y %H:%M:%S')
-fileHandler = logging.FileHandler(logpath)
+fileHandler = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1)
 fileHandler.setFormatter(formatter)
 rootLogger.addHandler(fileHandler)
 
 
 class BaseProxy(object):
-  
+
   required_header = ['Authorization',
                      'User-Agent',
                      'X-Twitter-Client',
@@ -33,20 +32,12 @@ class BaseProxy(object):
   def __init__(self):
     data = ''
     fd = web.ctx.env['wsgi.input']
-    if self._is_post_request():
-      while 1:
-        chunked = fd.read(10000)
-        if not chunked:
-          break
-        data += chunked
-      web.ctx.data = data
-    self.callback_specified = False
-  
-  def _is_post_request(self):
-    if web.ctx.env['REQUEST_METHOD'].upper() != 'POST':
-	    return False
-    content_type = web.ctx.env.get('CONTENT_TYPE', 'application/x-www-form-urlencoded')
-    return (content_type.startswith('application/x-www-form-urlencoded'  or content_type.startswith('multipart/form-data')))
+    while 1:
+      chunked = fd.read(10000)
+      if not chunked:
+        break
+      data += chunked
+    web.ctx.data = data
 
   def _get_headers(self):
     headers = {}
@@ -63,7 +54,7 @@ class BaseProxy(object):
     if result.status == 200:
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
-        filtered = self.filter(content, self.user)
+        filtered = self.filter(content)
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     else:
@@ -78,9 +69,6 @@ class BaseProxy(object):
     target_url = '/' +params 
     if web.ctx.environ.get('QUERY_STRING', None):
       target_url += '?'+web.ctx.environ['QUERY_STRING']
-    webin = web.input()
-    if webin.has_key('callback'):
-      self.callback_specified = webin.callback
     httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
       httpcon.request('GET', target_url, headers=headers)
@@ -88,7 +76,7 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))		
+        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
@@ -116,7 +104,6 @@ class OptimizedProxy(BaseProxy):
 
   def __init__(self):
     BaseProxy.__init__(self)
-    self.user = None
 
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
@@ -127,6 +114,7 @@ class OptimizedProxy(BaseProxy):
         headers['Authorization'] = 'Basic '+qs['__token__']
         del qs['__token__']
         web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
+    logging.debug(str(headers))
     return headers
 
   def sendoutput(self, result):
@@ -135,13 +123,7 @@ class OptimizedProxy(BaseProxy):
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
         try:
-          stripped = False
-          if self.callback_specified and content.startswith('%s(' %self.callback_specified):
-            content = content[len(self.callback_specified)+1:-2]
-            stripped = True
-          filtered = self.filter(content, self.user)
-          if stripped:
-            filtered = '%s(%s)' % (self.callback_specified, filtered)
+          filtered = self.filter(content)
         except Exception, why:
           logging.debug(str(why))
           filtered = content
@@ -220,7 +202,7 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
         else:
           response = {'id': d.findtext('statusid')}
         content = simplejson.dumps(response)
-        filtered = self.filter(content, self.user)
+        filtered = self.filter(content)
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     else:
@@ -246,20 +228,7 @@ class JSONTwitPicProxy(BaseProxy, filter.Filter):
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
 
-class RepliesOptimizedProxy(OptimizedProxy):
-  def _get_headers(self):
-    headers = BaseProxy._get_headers(self)
-    headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
-    if 'Authorization' not in headers:
-      qs = web.input(__token__=None)
-      if qs['__token__'] is not None:
-        headers['Authorization'] = 'Basic '+qs['__token__']
-        del qs['__token__']
-        web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
-    authorize_string = headers['Authorization']
-    self.user = base64.b64decode(authorize_string[6:])
-    self.user = self.user[:self.user.find(':')]
-    return headers
+
     
 class NoFilterProxy(BaseProxy, filter.Filter):
   pass
@@ -271,9 +240,6 @@ class JSONStatusesIncludeImageProxy(OptimizedProxy, json.StatusesIncludeImage):
   pass
 
 class JSONStatusesTextOnlyProxy(OptimizedProxy, json.StatusesTextOnly):
-  pass
-
-class JSONRepliesStatusesTextOnlyProxy(RepliesOptimizedProxy, json.RepliesStatusesTextOnly):
   pass
 
 class JSONSingleStatusesIncludeImageProxy(OptimizedProxy, json.SingleStatusesIncludeImage):
@@ -325,7 +291,6 @@ urls  = (
     '/api/(.*)', 'NoFilterProxy',
     '/optimized/(.*)', 'NoFilterOptimizedProxy',
 
-    '/text/(statuses/user_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/user_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
@@ -336,9 +301,8 @@ urls  = (
     '/text/(statuses/friends_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/friends_timeline/\w+\.xml.*)', 'XMLStatusesTextOnlyProxy',
 
-    '/text/(statuses/replies\.json.*)', 'JSONRepliesStatusesTextOnlyProxy',
+    '/text/(statuses/replies\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/replies\.xml.*)', 'XMLStatusesTextOnlyProxy',
-
     '/text/(statuses/update\.json.*)', 'JSONSingleStatusesTextOnlyProxy',
     '/text/(statuses/update\.xml.*)', 'XMLSingleStatusesTextOnlyProxy',
     '/text/(direct_messages\.json.*)', 'JSONDirectMessageTextOnlyProxy',

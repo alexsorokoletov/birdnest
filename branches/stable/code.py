@@ -1,9 +1,9 @@
 #!/usr/bin/python2.5
 import logging
 import logging.handlers
+import sys
 import traceback
 import web
-import sys
 import httplib
 import urllib
 from birdnest.filter import Filter
@@ -181,6 +181,7 @@ class OptimizedProxy(BaseProxy):
 class JSONTwitPicProxy(BaseProxy, Filter):
 
   required_header = ['Authorization',
+                     'Content-Length',
                      'User-Agent',
                      'X-Twitter-Client',
                      'X-Twitter-Client-URL',
@@ -239,6 +240,100 @@ class JSONTwitPicProxy(BaseProxy, Filter):
         logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
         logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+      web.internalerror()
+
+
+class JSONTwitPicManualProxy(BaseProxy, Filter):
+
+  required_header = ['Authorization',
+                     'Content-Length',
+                     'User-Agent',
+                     'X-Twitter-Client',
+                     'X-Twitter-Client-URL',
+                     'X-Twitter-Client-Version']
+
+  def __init__(self):
+    BaseProxy.__init__(self)
+
+  def _get_headers(self):
+    headers = BaseProxy._get_headers(self)
+    headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
+    return headers
+
+  def parse_response(self, response):
+    from xml.etree import ElementTree as ET
+    root = ET.fromstring(response)
+    return root
+
+  def sendoutput(self, result):
+    import simplejson
+    content = result.read()
+    logging.debug(content)
+    if result.status == 200:
+      web.ctx.headers = result.getheaders()
+      if len(content.strip()) > 0:
+        d = self.parse_response(content)
+        err = d.find('err')
+        if err is not None:
+          reason = '%s %s' % (err.attrib['code'], err.attrib['msg'])
+          response = {'error': reason}
+          web.ctx.status = str(400)+' '+reason
+        else:
+          from urllib import urlencode
+          from cStringIO import StringIO
+          import cgi
+          import base64
+          try:
+            mediaurl = d.findtext('mediaurl')
+            fp = StringIO(web.data())
+            environ = {'REQUEST_METHOD': 'POST',
+                       'CONTENT_TYPE': web.ctx.environ['CONTENT_TYPE'],
+                       'CONTENT_LENGTH': len(web.data())}
+            m = cgi.FieldStorage(fp, environ=environ)
+            message = '%s - %s' % (m['message'].value, mediaurl)
+            qs = urlencode({'status': message, 'source': 'jibjib'})
+            headers = self._get_headers()
+            headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
+            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            headers['Authorization'] = 'Basic '+base64.encodestring(m['username'].value+':'+m['password'].value)[:-1]
+            httpcon = httplib.HTTPConnection('twitter.com', 80)
+            logging.debug(str(headers))
+            logging.debug(qs)
+            httpcon.request('POST', '/statuses/update.json', headers=headers, body=qs)
+            twitter_response = httpcon.getresponse()
+            content = twitter_response.read()
+            logging.debug(content)
+            status = simplejson.loads(content)
+            response = {'id': status['id']}
+          except Exception, why:
+            logging.debug(reason)
+            response = {'error': reason}
+            web.ctx.status = str(500)+' '+str(reason)
+        content = simplejson.dumps(response)
+        filtered = self.filter(content)
+        web.header('content-length', len(filtered))
+        web.webapi.output(filtered)
+    else:
+      web.ctx.headers = result.getheaders()
+      web.ctx.status = str(result.status)+' '+result.reason
+      web.webapi.output(content)
+
+  def POST(self, params):
+    result = None
+    target_url = '/' +params 
+    headers = self._get_headers()
+    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    logging.debug(str(headers))
+    #logging.debug(web.data())
+    try:
+      httpcon.request('POST', '/api/upload', headers=headers, body=web.data())
+      twitter_response = httpcon.getresponse()
+      self.sendoutput(twitter_response)
+    except Exception, inst:
+      if result:
+        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, twitter_response.read()))
+      else:
+        logging.error("%s \n\n %s \n\n %s" % (target_url, str(inst), headers))
       web.internalerror()
 
 
@@ -325,7 +420,7 @@ urls  = (
     '/text/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
-    '/text/twitpic/(api/uploadAndPost.*)', 'JSONTwitPicProxy',
+    '/text/twitpic/(api/uploadAndPost.*)', 'JSONTwitPicManualProxy',
 
     '/text/(.*)', 'NoFilterOptimizedProxy',
 

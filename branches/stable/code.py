@@ -290,7 +290,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
                        'CONTENT_TYPE': web.ctx.environ['CONTENT_TYPE'],
                        'CONTENT_LENGTH': len(web.data())}
             m = cgi.FieldStorage(fp, environ=environ)
-            message = '%s - %s' % (m['message'].value, mediaurl)
+            message = '%s %s' % (m['message'].value, mediaurl)
             qs = urlencode({'status': message, 'source': 'jibjib'})
             headers = self._get_headers()
             headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'

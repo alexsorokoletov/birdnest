@@ -254,6 +254,11 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
     headers = BaseProxy._get_headers(self)
     headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
     logger.debug(str(headers))
+    import re
+    m = re.match(r'multipart/form-data;boundary=([^;]+); charset=UTF-8', headers['Content-Type'])
+    if m:
+        headers['Content-Type'] = 'multipart/form-data; charset=UTF-8; boundary=%s' % m.group(1)
+        logger.debug('rewritten'+str(headers))
     return headers
 
   def parse_response(self, response):

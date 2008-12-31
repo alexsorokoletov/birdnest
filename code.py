@@ -12,13 +12,7 @@ from birdnest.filter import XML
 
 logpath = 'log.txt'
 twitterAPI = "http://twitter.com/"
-rootLogger = logging.getLogger('')
-rootLogger.setLevel(logging.DEBUG)
-formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s : %(pathname)s (%(lineno)d) --- %(message)s', 
-                                              datefmt='%d %b %Y %H:%M:%S')
-fileHandler = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1)
-fileHandler.setFormatter(formatter)
-rootLogger.addHandler(fileHandler)
+logger = logging.getLogger()
 
 
 class BaseProxy(object):
@@ -81,9 +75,9 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
       
 
@@ -99,9 +93,9 @@ class BaseProxy(object):
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
 
 class OptimizedProxy(BaseProxy):
@@ -120,14 +114,14 @@ class OptimizedProxy(BaseProxy):
 
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
-    headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     if 'Authorization' not in headers:
       qs = web.input(__token__=None)
       if qs['__token__'] is not None:
         headers['Authorization'] = 'Basic '+qs['__token__']
         del qs['__token__']
         web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
-    logging.debug(str(headers))
+    logger.debug(str(headers))
+    headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     return headers
 
   def sendoutput(self, result):
@@ -138,7 +132,7 @@ class OptimizedProxy(BaseProxy):
         try:
           filtered = self.filter(content)
         except Exception, why:
-          logging.debug(str(why))
+          logger.error(str(why))
           filtered = content
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
@@ -154,17 +148,17 @@ class OptimizedProxy(BaseProxy):
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
     elif result.status == 401 or result.status == 403:
-      logging.debug(result.getheaders())
-      logging.debug(web.ctx.environ)
+      logger.debug(result.getheaders())
+      logger.debug(web.ctx.environ)
       web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
       web.webapi.output(filtered)
     elif result.status == 500:
-      logging.debug(result.getheaders())
-      logging.debug(web.ctx.environ)
-      logging.debug(content)
+      logger.debug(result.getheaders())
+      logger.debug(web.ctx.environ)
+      logger.debug(content)
       web.ctx.headers = self._filter_headers(result.getheaders())
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
@@ -193,6 +187,7 @@ class JSONTwitPicProxy(BaseProxy, Filter):
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
     headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
+    logger.debug(str(headers))
     return headers
 
   def parse_response(self, response):
@@ -203,7 +198,7 @@ class JSONTwitPicProxy(BaseProxy, Filter):
   def sendoutput(self, result):
     import simplejson
     content = result.read()
-    logging.debug(content)
+    logger.debug(content)
     if result.status == 200:
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
@@ -229,17 +224,17 @@ class JSONTwitPicProxy(BaseProxy, Filter):
     target_url = '/' +params 
     headers = self._get_headers()
     httpcon = httplib.HTTPConnection('twitpic.com', 80)
-    logging.debug(str(headers))
-    #logging.debug(web.data())
+    #logger.debug(str(headers))
+    #logger.debug(web.data())
     try:
       httpcon.request('POST', target_url, headers=headers, body=web.data())
       twitter_response = httpcon.getresponse()
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
 
 
@@ -258,6 +253,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
     headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
+    logger.debug(str(headers))
     return headers
 
   def parse_response(self, response):
@@ -268,7 +264,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
   def sendoutput(self, result):
     import simplejson
     content = result.read()
-    logging.debug(content)
+    logger.debug(content)
     if result.status == 200:
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
@@ -297,17 +293,17 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
             headers['Authorization'] = 'Basic '+base64.encodestring(m['username'].value+':'+m['password'].value)[:-1]
             httpcon = httplib.HTTPConnection('twitter.com', 80)
-            logging.debug(str(headers))
-            logging.debug(qs)
+            logger.debug(str(headers))
+            logger.debug(qs)
             httpcon.request('POST', '/statuses/update.json', headers=headers, body=qs)
             twitter_response = httpcon.getresponse()
             content = twitter_response.read()
-            logging.debug(content)
+            logger.debug(content)
             status = simplejson.loads(content)
             response = {'id': status['id']}
           except Exception, why:
-            logging.debug(reason)
-            response = {'error': reason}
+            logger.error(str(why))
+            response = {'error': str(why)}
             web.ctx.status = str(500)+' '+str(reason)
         content = simplejson.dumps(response)
         filtered = self.filter(content)
@@ -323,17 +319,17 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
     target_url = '/' +params 
     headers = self._get_headers()
     httpcon = httplib.HTTPConnection('twitpic.com', 80)
-    logging.debug(str(headers))
-    #logging.debug(web.data())
+    #logger.debug(str(headers))
+    #logger.debug(web.data())
     try:
       httpcon.request('POST', '/api/upload', headers=headers, body=web.data())
       twitter_response = httpcon.getresponse()
       self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
-        logging.error("%s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, twitter_response.read()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, twitter_response.read()))
       else:
-        logging.error("%s \n\n %s \n\n %s" % (target_url, str(inst), headers))
+        logger.error("%s\n\n%s\n\n%s" % (target_url, str(inst), headers))
       web.internalerror()
 
 
@@ -459,4 +455,15 @@ def runfcgi(func, addr=('localhost', 8000)):
 web.wsgi.runfcgi = runfcgi
 
 #web.webapi.internalerror = web.debugerror
-if __name__ == "__main__": web.run(urls, globals(), web.reloader)
+if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
+    fh = logging.handlers.RotatingFileHandler(
+             logpath, maxBytes=20*1024*1024, backupCount=5)
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+                    fmt='%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s',
+                    datefmt='%Y%m%d %H:%M:%S')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    web.run(urls, globals(), web.reloader)

@@ -10,9 +10,9 @@ from birdnest.filter import Filter
 from birdnest.filter import json
 from birdnest.filter import XML
 
-logpath = 'log.txt'
 twitterAPI = "http://twitter.com/"
 logger = logging.getLogger()
+ua_logger = logging.getLogger('useragent')
 
 
 class BaseProxy(object):
@@ -34,6 +34,7 @@ class BaseProxy(object):
         break
       data += chunked
     web.ctx.data = data
+    ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
   def _get_headers(self):
     headers = {}
@@ -461,6 +462,7 @@ web.wsgi.runfcgi = runfcgi
 
 #web.webapi.internalerror = web.debugerror
 if __name__ == "__main__":
+    logpath = 'log.txt'
     logger.setLevel(logging.DEBUG)
     fh = logging.handlers.RotatingFileHandler(
              logpath, maxBytes=20*1024*1024, backupCount=5)
@@ -470,5 +472,16 @@ if __name__ == "__main__":
                     datefmt='%Y%m%d %H:%M:%S')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+
+    logpath = 'useragent.txt'
+    ua_logger.setLevel(logging.INFO)
+    fh = logging.handlers.RotatingFileHandler(
+             logpath, maxBytes=20*1024*1024, backupCount=5)
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+                    fmt='%(asctime)s %(message)s',
+                    datefmt='%Y%m%d %H:%M:%S')
+    fh.setFormatter(formatter)
+    ua_logger.addHandler(fh)
 
     web.run(urls, globals(), web.reloader)

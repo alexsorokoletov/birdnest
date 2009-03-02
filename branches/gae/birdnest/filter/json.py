@@ -1,6 +1,9 @@
 import types
 import logging
-import simplejson
+try:
+    import simplejson
+except ImportError:
+    from django.utils import simplejson
 from birdnest.filter import Filter as _Filter
 
 class Filter(_Filter):

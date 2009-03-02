@@ -85,7 +85,7 @@ $def with (exception_type, exception_value, frames)
         oElm.getElementsByTagName(strTagName);
         var arrReturnElements = new Array();
         strClassName = strClassName.replace(/\-/g, "\\-");
-        var oRegExp = new RegExp("(^|\\s)" + strClassName + "(\\s|$)");
+        var oRegExp = new RegExp("(^|\\s)" + strClassName + "(\\s|$$)");
         var oElement;
         for(var i=0; i<arrElements.length; i++){
             oElement = arrElements[i];
@@ -127,6 +127,24 @@ $def with (exception_type, exception_value, frames)
 </head>
 <body>
 
+$def dicttable (d, kls='req', id=None):
+    $ items = d and d.items() or []
+    $items.sort()
+    $:dicttable_items(items, kls, id)
+        
+$def dicttable_items(items, kls='req', id=None):
+    $if items:
+        <table class="$kls"
+        $if id: id="$id"
+        ><thead><tr><th>Variable</th><th>Value</th></tr></thead>
+        <tbody>
+        $for k, v in items:
+            <tr><td>$k</td><td class="code"><div>$prettify(v)</div></td></tr>
+        </tbody>
+        </table>
+    $else:
+        <p>No data.</p>
+
 <div id="summary">
   <h1>$exception_type at $ctx.path</h1>
   <h2>$exception_value</h2>
@@ -153,10 +171,10 @@ $for frame in frames:
             </ol>
             <ol start="$frame.lineno" class="context-line"><li onclick="toggle('pre$frame.id', 'post$frame.id')">$frame.context_line <span>...</span></li></ol>
         $if frame.post_context:
-          <ol start='${frame.lineno + 1}' class="post-context" id="post$frame.id">
-          $for line in frame.post_context:
-              <li onclick="toggle('pre$frame.id', 'post$frame.id')">$line</li>
-          </ol>
+            <ol start='${frame.lineno + 1}' class="post-context" id="post$frame.id">
+            $for line in frame.post_context:
+                <li onclick="toggle('pre$frame.id', 'post$frame.id')">$line</li>
+            </ol>
       </div>
     
     $if frame.vars:
@@ -173,12 +191,7 @@ $for frame in frames:
 $if ctx.output or ctx.headers:
     <h2>Response so far</h2>
     <h3>HEADERS</h3>
-    <p class="req"><code>
-    $for kv in ctx.headers:
-        $kv[0]: $kv[1]<br />
-    $else:
-        [no headers]
-    </code></p>
+    $:dicttable_items(ctx.headers)
 
     <h3>BODY</h3>
     <p class="req" style="padding-bottom: 2em"><code>
@@ -194,11 +207,7 @@ $:dicttable(web.input())
 $:dicttable(web.cookies())
 
 <h3 id="meta-info">META</h3>
-$ newctx = []
-$# ) and (k not in ['env', 'output', 'headers', 'environ', 'status', 'db_execute']):
-$for k, v in ctx.iteritems():
-    $if not k.startswith('_') and (k in x):
-        $newctx.append(kv)
+$ newctx = [(k, v) for (k, v) in ctx.iteritems() if not k.startswith('_') and not isinstance(v, dict)]
 $:dicttable(dict(newctx))
 
 <h3 id="meta-info">ENVIRONMENT</h3>
@@ -207,8 +216,8 @@ $:dicttable(ctx.env)
 
 <div id="explanation">
   <p>
-    You're seeing this error because you have <code>web.internalerror</code>
-    set to <code>web.debugerror</code>. Change that if you want a different one.
+    You're seeing this error because you have <code>web.config.debug</code>
+    set to <code>True</code>. Set that to <code>False</code> if you don't to see this.
   </p>
 </div>
 
@@ -216,24 +225,7 @@ $:dicttable(ctx.env)
 </html>
 """
 
-dicttable_t = r"""$def with (d, kls='req', id=None)
-$if d:
-    <table class="$kls"\
-    $if id:  id="$id"\
-    ><thead><tr><th>Variable</th><th>Value</th></tr></thead>
-    <tbody>
-    $ temp = d.items()
-    $temp.sort()
-    $for kv in temp:
-        <tr><td>$kv[0]</td><td class="code"><div>$prettify(kv[1])</div></td></tr>
-    </tbody>
-    </table>
-$else:
-    <p>No data.</p>
-"""
-
-dicttable_r = Template(dicttable_t, filter=websafe)
-djangoerror_r = Template(djangoerror_t, filter=websafe)
+djangoerror_r = None
 
 def djangoerror():
     def _get_lines_from_file(filename, lineno, context_lines):
@@ -286,10 +278,14 @@ def djangoerror():
             out = '[could not display: <' + e.__class__.__name__ + \
                   ': '+str(e)+'>]'
         return out
-    dt = dicttable_r
-    dt.globals = {'prettify': prettify}
+        
+    global djangoerror_r
+    if djangoerror_r is None:
+        djangoerror_r = Template(djangoerror_t, filename=__file__, filter=websafe)
+        
     t = djangoerror_r
-    t.globals = {'ctx': web.ctx, 'web':web, 'dicttable':dt, 'dict':dict, 'str':str}
+    globals = {'ctx': web.ctx, 'web':web, 'dict':dict, 'str':str, 'prettify': prettify}
+    t.t.func_globals.update(globals)
     return t(exception_type, exception_value, frames)
 
 def debugerror():
@@ -300,9 +296,7 @@ def debugerror():
     (Based on the beautiful 500 page from [Django](http://djangoproject.com/), 
     designed by [Wilson Miner](http://wilsonminer.com/).)
     """
-    
-    web.ctx.headers = [('Content-Type', 'text/html')]
-    web.ctx.output = djangoerror()
+    return web._InternalError(djangoerror())
 
 def emailerrors(email_address, olderror):
     """
@@ -314,7 +308,7 @@ def emailerrors(email_address, olderror):
     attachment containing the nice `debugerror` page.
     """
     def emailerrors_internal():
-        olderror()
+        error = olderror()
         tb = sys.exc_info()
         error_name = tb[0]
         error_value = tb[1]
@@ -342,6 +336,7 @@ Content-Disposition: attachment; filename="bug.html"
           "bug: %(error_name)s: %(error_value)s (%(path)s)" % locals(),
           text, 
           headers={'Content-Type': 'multipart/mixed; boundary="----here----"'})
+        return error
     
     return emailerrors_internal
 
@@ -349,10 +344,12 @@ if __name__ == "__main__":
     urls = (
         '/', 'index'
     )
+    from application import application
+    app = application(urls, globals())
+    app.internalerror = debugerror
     
     class index:
         def GET(self):
             thisdoesnotexist
-    
-    web.internalerror = web.debugerror
-    web.run(urls)
+
+    app.run()

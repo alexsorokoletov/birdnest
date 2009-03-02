@@ -3,6 +3,7 @@ __all__ = ["runsimple"]
 import sys, os
 import webapi as web
 import net
+import utils
 
 def runbasic(func, server_address=("0.0.0.0", 8080)):
     """
@@ -211,8 +212,8 @@ def runsimple(func, server_address=("0.0.0.0", 8080)):
             #@@ BaseHTTPRequestHandler just for this method
             time = self.log_date_time_string()
 
-            print >> outfile, self.format % (host, time, protocol, 
-                                             method, req, status)
+            msg = self.format % (host, time, protocol, method, req, status)
+            print >> outfile, utils.safestr(msg)
             
     func = WSGIWrapper(func)
     server = CherryPyWSGIServer(server_address, func, server_name="localhost")

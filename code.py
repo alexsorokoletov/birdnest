@@ -1,9 +1,7 @@
 #!/usr/bin/python2.5
 import logging
 import logging.handlers
-import traceback
 import web
-import sys
 import httplib
 import urllib
 import base64
@@ -17,10 +15,12 @@ rootLogger = logging.getLogger('')
 rootLogger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-8s : %(pathname)s (%(lineno)d) --- %(message)s', 
                                               datefmt='%d %b %Y %H:%M:%S')
-fileHandler = logging.FileHandler(logpath)
-fileHandler.setFormatter(formatter)
-rootLogger.addHandler(fileHandler)
-
+try:
+    fileHandler = logging.FileHandler(logpath)
+    fileHandler.setFormatter(formatter)
+    rootLogger.addHandler(fileHandler)
+except:
+    pass
 
 class BaseProxy(object):
   
@@ -65,11 +65,11 @@ class BaseProxy(object):
       if len(content.strip()) > 0:
         filtered = self.filter(content, self.user)
         web.header('content-length', len(filtered))
-        web.webapi.output(filtered)
+        return (filtered)
     else:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
-      web.webapi.output(content)
+      return (content)
 
   def GET(self, params):    
     result = None
@@ -85,7 +85,7 @@ class BaseProxy(object):
     try:
       httpcon.request('GET', target_url, headers=headers)
       twitter_response = httpcon.getresponse()
-      self.sendoutput(twitter_response)
+      return self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
         logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))		
@@ -103,7 +103,7 @@ class BaseProxy(object):
     try:
       httpcon.request('POST', target_url, headers=headers, body=web.data())
       twitter_response = httpcon.getresponse()
-      self.sendoutput(twitter_response)
+      return self.sendoutput(twitter_response)
     except Exception, inst:
       if result:
         logging.error("%s \n\n %s \n\n %s \n\n %s \n\n %s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
@@ -146,18 +146,18 @@ class OptimizedProxy(BaseProxy):
           logging.debug(str(why))
           filtered = content
         web.header('content-length', len(filtered))
-        web.webapi.output(filtered)
+        return (filtered)
     elif result.status == 304:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
       web.header('content-length', len(content))
-      web.webapi.output(content)
+      return (content)
     elif result.status == 400:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = self.error_filter(content)
       web.header('content-length', len(filtered))
-      web.webapi.output(filtered)
+      return (filtered)
     elif result.status == 401 or result.status == 403:
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)
@@ -165,7 +165,7 @@ class OptimizedProxy(BaseProxy):
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
-      web.webapi.output(filtered)
+      return (filtered)
     elif result.status == 500:
       logging.debug(result.getheaders())
       logging.debug(web.ctx.environ)
@@ -174,13 +174,13 @@ class OptimizedProxy(BaseProxy):
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
-      web.webapi.output(filtered)
+      return (filtered)
     else:
       web.ctx.headers = result.getheaders()
       web.ctx.status = str(result.status)+' '+result.reason
       filtered = ''
       web.header('content-length', len(filtered))
-      web.webapi.output(filtered)
+      return (filtered)
 
 
 class JSONTwitPicProxy(BaseProxy, filter.Filter):
@@ -380,11 +380,19 @@ urls  = (
     '/(.*)', 'BaseProxy',
     )
 
-def runfcgi(func, addr=('localhost', 8000)):
-    """Runs a WSGI function as a FastCGI server."""
+app = web.application(urls, globals(), autoreload=True)
+try:
     import flup.server.cgi as flups
-    return flups.WSGIServer(func).run()
-web.wsgi.runfcgi = runfcgi
+    def runfcgi(func, addr=('localhost', 8000)):
+        """Runs a WSGI function as a FastCGI server."""
+        return flups.WSGIServer(func).run()
 
+    if __name__ == "__main__": 
+        app.run(runfcgi)
+except ImportError:
+    if __name__ == "__main__": 
+        main = app.cgirun()
+
+#web.wsgi.runfcgi = runfcgi
 #web.webapi.internalerror = web.debugerror
-if __name__ == "__main__": web.run(urls, globals(), web.reloader)
+

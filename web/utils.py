@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 General Utilities
 (part of web.py)
@@ -6,7 +7,8 @@ General Utilities
 __all__ = [
   "Storage", "storage", "storify", 
   "iters", 
-  "rstrips", "lstrips", "strips", "utf8",
+  "rstrips", "lstrips", "strips", 
+  "safeunicode", "safestr", "utf8",
   "TimeoutError", "timelimit",
   "Memoize", "memoize",
   "re_compile", "re_subm",
@@ -14,17 +16,24 @@ __all__ = [
   "IterBetter", "iterbetter",
   "dictreverse", "dictfind", "dictfindall", "dictincr", "dictadd",
   "listget", "intget", "datestr",
-  "numify", "denumify", "dateify",
+  "numify", "denumify", "commify", "dateify",
+  "nthstr",
   "CaptureStdout", "capturestdout", "Profile", "profile",
   "tryall",
-  "ThreadedDict",
+  "ThreadedDict", "threadeddict",
   "autoassign",
   "to36",
   "safemarkdown",
   "sendmail"
 ]
 
-import re, sys, time, threading, os
+import re, sys, time, threading
+
+try:
+    import subprocess
+except ImportError: 
+    subprocess = None
+
 try: import datetime
 except ImportError: pass
 
@@ -99,13 +108,26 @@ def storify(mapping, *requireds, **defaults):
         <Storage {'value': 1}>
         >>> storify({}, a={}).a
         {}
+        
+    Optionally, keyword parameter `_unicode` can be passed to convert all values to unicode.
     
+        >>> storify({'x': 'a'}, _unicode=True)
+        <Storage {'x': u'a'}>
+        >>> storify({'x': storage(value='a')}, x={}, _unicode=True)
+        <Storage {'x': <Storage {'value': 'a'}>}>
+        >>> storify({'x': storage(value='a')}, _unicode=True)
+        <Storage {'x': u'a'}>
     """
+    _unicode = defaults.pop('_unicode', False)
+    def unicodify(s):
+        if _unicode and isinstance(s, str): return safeunicode(s)
+        else: return s
+        
     def getvalue(x):
         if hasattr(x, 'value'):
-            return x.value
+            return unicodify(x.value)
         else:
-            return x
+            return unicodify(x)
     
     stor = Storage()
     for key in requireds + tuple(mapping.keys()):
@@ -135,12 +157,15 @@ iters = [list, tuple]
 import __builtin__
 if hasattr(__builtin__, 'set'):
     iters.append(set)
-try: 
-    from sets import Set
-    iters.append(Set)
-except ImportError: 
-    pass
-
+if hasattr(__builtin__, 'frozenset'):
+    iters.append(set)
+if sys.version_info < (2,6): # sets module deprecated in 2.6
+    try:
+        from sets import Set
+        iters.append(Set)
+    except ImportError: 
+        pass
+    
 class _hack(tuple): pass
 iters = _hack(iters)
 iters.__doc__ = """
@@ -180,7 +205,8 @@ def lstrips(text, remove):
     return _strips('l', text, remove)
 
 def strips(text, remove):
-    """removes the string `remove` from the both sides of `text`
+    """
+    removes the string `remove` from the both sides of `text`
 
         >>> strips("foobarfoo", "foo")
         'bar'
@@ -188,24 +214,48 @@ def strips(text, remove):
     """
     return rstrips(lstrips(text, remove), remove)
 
-def utf8(text):
-    """Encodes text in utf-8.
-        
-        >> utf8(u'\u1234') # doctest doesn't seem to like utf-8
-        '\xe1\x88\xb4'
-
-        >>> utf8('hello')
-        'hello'
-        >>> utf8(42)
-        '42'
+def safeunicode(obj, encoding='utf-8'):
+    r"""
+    Converts any given object to unicode string.
+    
+        >>> safeunicode('hello')
+        u'hello'
+        >>> safeunicode(2)
+        u'2'
+        >>> safeunicode('\xe1\x88\xb4')
+        u'\u1234'
     """
-    if isinstance(text, unicode):
-        return text.encode('utf-8')
-    elif isinstance(text, str):
-        return text
+    if isinstance(obj, unicode):
+        return obj
+    elif isinstance(obj, str):
+        return obj.decode(encoding)
     else:
-        return str(text)
+        if hasattr(obj, '__unicode__'):
+            return unicode(obj)
+        else:
+            return str(obj).decode(encoding)
+    
+def safestr(obj, encoding='utf-8'):
+    r"""
+    Converts any given object to utf-8 encoded string. 
+    
+        >>> safestr('hello')
+        'hello'
+        >>> safestr(u'\u1234')
+        '\xe1\x88\xb4'
+        >>> safestr(2)
+        '2'
+    """
+    if isinstance(obj, unicode):
+        return obj.encode('utf-8')
+    elif isinstance(obj, str):
+        return obj
+    else:
+        return str(obj)
 
+# for backward-compatibility
+utf8 = safestr
+    
 class TimeoutError(Exception): pass
 def timelimit(timeout):
     """
@@ -368,6 +418,8 @@ iterbetter = IterBetter
 
 def dictreverse(mapping):
     """
+    Returns a new dictionary with keys and values swapped.
+    
         >>> dictreverse({1: 2, 3: 4})
         {2: 1, 4: 3}
     """
@@ -570,11 +622,73 @@ def denumify(string, pattern):
             out.append(c)
     return ''.join(out)
 
+def commify(n):
+    """
+    Add commas to an integer `n`.
+
+        >>> commify(1)
+        '1'
+        >>> commify(123)
+        '123'
+        >>> commify(1234)
+        '1,234'
+        >>> commify(1234567890)
+        '1,234,567,890'
+        >>> commify(None)
+        >>>
+    
+    """
+    if n is None: return None
+    r = []
+    for i, c in enumerate(reversed(str(n))):
+        if i and (not (i % 3)):
+            r.insert(0, ',')
+        r.insert(0, c)
+    return ''.join(r)
+
 def dateify(datestring):
     """
     Formats a numified `datestring` properly.
     """
     return denumify(datestring, "XXXX-XX-XX XX:XX:XX")
+
+
+def nthstr(n):
+    """
+    Formats an ordinal.
+    Doesn't handle negative numbers.
+
+        >>> nthstr(1)
+        '1st'
+        >>> nthstr(0)
+        '0th'
+        >>> [nthstr(x) for x in [2, 3, 4, 5, 10, 11, 12, 13, 14, 15]]
+        ['2nd', '3rd', '4th', '5th', '10th', '11th', '12th', '13th', '14th', '15th']
+        >>> [nthstr(x) for x in [91, 92, 93, 94, 99, 100, 101, 102]]
+        ['91st', '92nd', '93rd', '94th', '99th', '100th', '101st', '102nd']
+        >>> [nthstr(x) for x in [111, 112, 113, 114, 115]]
+        ['111th', '112th', '113th', '114th', '115th']
+
+    """
+    
+    assert n >= 0
+    if n % 100 in [11, 12, 13]: return '%sth' % n
+    return {1: '%sst', 2: '%snd', 3: '%srd'}.get(n % 10, '%sth') % n
+
+def cond(predicate, consequence, alternative=None):
+    """
+    Function replacement for if-else to use in expressions.
+        
+        >>> x = 2
+        >>> cond(x % 2 == 0, "even", "odd")
+        'even'
+        >>> cond(x % 2 == 0, "even", "odd") + '_row'
+        'even_row'
+    """
+    if predicate:
+        return consequence
+    else:
+        return alternative
 
 class CaptureStdout:
     """
@@ -626,15 +740,17 @@ class Profile:
         stime = time.time() - stime
         prof.close()
 
-        def print_stats():
-            stats = hotshot.stats.load(temp.name)
-            stats.strip_dirs()
-            stats.sort_stats('time', 'calls')
-            stats.print_stats(40)
-            stats.print_callers()
-    
+        import cStringIO
+        out = cStringIO.StringIO()
+        stats = hotshot.stats.load(temp.name)
+        stats.stream = out
+        stats.strip_dirs()
+        stats.sort_stats('time', 'calls')
+        stats.print_stats(40)
+        stats.print_callers()
+
         x =  '\n\ntook '+ str(stime) + ' seconds\n'
-        x += capturestdout(print_stats)()
+        x += out.getvalue()
 
         return result, x
 
@@ -693,43 +809,46 @@ def tryall(context, prefix=None):
     print 'results:'
     for (key, value) in results.iteritems():
         print ' '*2, str(key)+':', value
-
+        
 class ThreadedDict:
     """
-    Takes a dictionary that maps threads to objects. 
-    When a thread tries to get or set an attribute or item 
-    of the threadeddict, it passes it on to the object 
-    for that thread in dictionary.
+    Thread local storage.
+    
+        >>> d = ThreadedDict()
+        >>> d.x = 1
+        >>> d.x
+        1
+        >>> import threading
+        >>> def f(): d.x = 2
+        >>> t = threading.Thread(target=f)
+        >>> t.start()
+        >>> t.join()
+        >>> d.x
+        1
     """
-    def __init__(self, dictionary): 
-        self.__dict__['_ThreadedDict__d'] = dictionary
-    
-    def __getattr__(self, attr): 
-        return getattr(self.__d[threading.currentThread()], attr)
-    
-    def __getitem__(self, item): 
-        return self.__d[threading.currentThread()][item]
-    
-    def __setattr__(self, attr, value):
-        if attr == '__doc__':
-            self.__dict__[attr] = value
-        else:
-            return setattr(self.__d[threading.currentThread()], attr, value)
-    
-    def __delattr__(self, item):
-        try:
-            del self.__d[threading.currentThread()][item]
-        except KeyError, k:
-            raise AttributeError, k
-    
-    def __delitem__(self, item):
-        del self.__d[threading.currentThread()][item]
-    
-    def __setitem__(self, item, value): 
-        self.__d[threading.currentThread()][item] = value
-    
+    def __getattr__(self, key):
+        return getattr(self._getd(), key)
+
+    def __setattr__(self, key, value):
+        return setattr(self._getd(), key, value)
+
+    def __delattr__(self, key):
+        return delattr(self._getd(), key)
+
     def __hash__(self): 
-        return hash(self.__d[threading.currentThread()])
+        return id(self)
+
+    def _getd(self):
+        t = threading.currentThread()
+        if not hasattr(t, '_d'):
+            # using __dict__ of thread as thread local storage
+            t._d = {}
+
+        # there could be multiple instances of ThreadedDict.
+        # use self as key
+        if self not in t._d:
+            t._d[self] = storage()
+        return t._d[self]
 
 threadeddict = ThreadedDict
 
@@ -804,8 +923,8 @@ def sendmail(from_address, to_address, subject, message, headers=None, **kw):
 
     If `web.config.smtp_server` is set, it will send the message
     to that SMTP server. Otherwise it will look for 
-    `/usr/lib/sendmail`, the typical location for the sendmail-style
-    binary.
+    `/usr/sbin/sendmail`, the typical location for the sendmail-style
+    binary. To use sendmail from a different path, set `web.config.sendmail_path`.
     """
     try:
         import webapi
@@ -819,9 +938,11 @@ def sendmail(from_address, to_address, subject, message, headers=None, **kw):
     
     def listify(x):
         if not isinstance(x, list):
-            return [x]
+            return [safestr(x)]
         else:
-            return x
+            return [safestr(a) for a in x]
+
+    from_address = safestr(from_address)
 
     to_address = listify(to_address)
     cc = listify(cc)
@@ -844,10 +965,9 @@ def sendmail(from_address, to_address, subject, message, headers=None, **kw):
     import email.Utils
     from_address = email.Utils.parseaddr(from_address)[1]
     recipients = [email.Utils.parseaddr(r)[1] for r in recipients]
-    message = ('\n'.join(['%s: %s' % x for x in headers.iteritems()])
-      + "\n\n" +  message)
-    message = utf8(message)
-    
+    message = ('\n'.join([safestr('%s: %s' % x) for x in headers.iteritems()])
+      + "\n\n" +  safestr(message))
+
     if webapi.config.get('smtp_server'):
         server = webapi.config.get('smtp_server')
         port = webapi.config.get('smtp_port', 0)
@@ -873,15 +993,24 @@ def sendmail(from_address, to_address, subject, message, headers=None, **kw):
         smtpserver.sendmail(from_address, recipients, message)
         smtpserver.quit()
     else:
+        sendmail = webapi.config.get('sendmail_path', '/usr/sbin/sendmail')
+        
         assert not from_address.startswith('-'), 'security'
         for r in recipients:
             assert not r.startswith('-'), 'security'
+                
 
-        i, o = os.popen2(["/usr/lib/sendmail", '-f', from_address] + recipients)
-        i.write(message)
-        i.close()
-        o.close()
-        del i, o
+        if subprocess:
+            p = subprocess.Popen(['/usr/sbin/sendmail', '-f', from_address] + recipients, stdin=subprocess.PIPE)
+            p.stdin.write(message)
+            p.stdin.close()
+            p.wait()
+        else:
+            i, o = os.popen2(["/usr/lib/sendmail", '-f', from_address] + recipients)
+            i.write(message)
+            i.close()
+            o.close()
+            del i, o
 
 if __name__ == "__main__":
     import doctest

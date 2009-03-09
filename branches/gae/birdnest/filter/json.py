@@ -1,6 +1,9 @@
 import types
 import logging
-import simplejson
+try:
+    import simplejson
+except:
+    from django.utils import simplejson 
 from birdnest.filter import remove_html
 from birdnest.filter import Filter as _Filter
 

@@ -339,7 +339,24 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
       web.internalerror()
 
 
+class GoogleLocationMobile:
+  def GET(self, cellid, lac):
+    import simplejson
+    from birdnest.glm import get_location
+    try:
+      lat, long = get_location(int(cellid), int(lac))
+      response = {'status': 'OK',
+                  'lat': lat,
+                  'long': long}
+    except Exception, why:
+      response = {'status': 'ERR',
+                  'message': str(why)}
+    content = simplejson.dumps(response)
+    web.header('content-length', len(content))
+    web.webapi.output(content)
     
+
+
 class NoFilterProxy(BaseProxy, Filter):
   pass
 
@@ -450,6 +467,8 @@ urls  = (
     '/image/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageIncludeImageProxy',
     '/image/(direct_messages/delete/\d+\.xml.*)', 'XMLSingleDirectMessageIncludeImageProxy',
     '/image/(.*)', 'NoFilterOptimizedProxy',
+
+    '/glm/cell/(\d+)/(\d+)', 'GoogleLocationMobile',
 
     '/(.*)', 'BaseProxy',
     )

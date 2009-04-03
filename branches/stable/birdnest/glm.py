@@ -4,7 +4,8 @@ country = 'fr'
 #device = 'Sony_Ericsson-K750'
 device = "Nokia N95 8Gb"
 user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-url = 'http://www.google.com/glm/mmap'
+mmap_url = 'http://www.google.com/glm/mmap'
+geo_url = 'http://maps.google.com/maps/geo'
 
 from struct import pack, unpack
 from httplib import HTTP
@@ -23,14 +24,14 @@ def fetch_latlong_http(query):
 
 def fetch_latlong_urllib(query):
     headers = { 'User-Agent' : user_agent }
-    req = urllib2.Request(url, query, headers)
+    req = urllib2.Request(mmap_url, query, headers)
     resp = urllib2.urlopen(req)
     response = resp.read()
     return response
 
 fetch_latlong = fetch_latlong_http
 
-def get_location(cid, lac, mnc=0, mcc=0, country='fr'):
+def get_location_by_cell(cid, lac, mnc=0, mcc=0, country='fr'):
     b_string = pack('>hqh2sh13sh5sh3sBiiihiiiiii',
                     21, 0,
                     len(country), country,
@@ -48,7 +49,13 @@ def get_location(cid, lac, mnc=0, mcc=0, country='fr'):
 
     return latitude, longitude
 
+def get_location_by_geo(latitude, longitude):
+    url = '%s?q=%s,%s&output=json&oe=utf8' % (geo_url, str(latitude), str(longitude))
+    return urllib2.urlopen(url).read()
+
 if __name__ == '__main__':
-    print get_location(20465, 495, 3, 262)
-    print get_location(20442, 6015)
-    print get_location(1085, 24040)
+    print get_location_by_cell(20465, 495, 3, 262)
+    print get_location_by_cell(20442, 6015)
+    print get_location_by_cell(1085, 24040)
+    print get_location_by_geo(40.714224, -73.961452)
+    print get_location_by_geo(13.749113, 100.565327)

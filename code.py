@@ -30,14 +30,15 @@ class BaseProxy(object):
   unwanted_header = []
 
   def __init__(self):
-    data = ''
-    fd = web.ctx.env['wsgi.input']
-    while 1:
-      chunked = fd.read(10000)
-      if not chunked:
-        break
-      data += chunked
-    web.ctx.data = data
+    if web.ctx.env['REQUEST_METHOD'] == 'POST':
+      data = ''
+      fd = web.ctx.env['wsgi.input']
+      while 1:
+        chunked = fd.read(10000)
+        if not chunked:
+          break
+        data += chunked
+      web.ctx.data = data
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
   def _get_headers(self):
@@ -112,7 +113,10 @@ class OptimizedProxy(BaseProxy):
                      'cache-control',
                      'set-cookie',
                      'vary',
-                     'connection']
+                     'connection',
+                     'x-transaction',
+                     'x-revision',
+                    ]
 
   def __init__(self):
     BaseProxy.__init__(self)
@@ -341,7 +345,38 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
       web.internalerror()
 
 
+class GoogleLocationMobile:
+  def GET(self, cellid, lac):
+    import simplejson
+    from birdnest.glm import get_location_by_cell
+    try:
+      lat, long = get_location_by_cell(int(cellid), int(lac))
+      response = {'status': 'OK',
+                  'lat': lat,
+                  'long': long}
+    except Exception, why:
+      response = {'status': 'ERR',
+                  'message': str(why)}
+    content = simplejson.dumps(response)
+    web.header('content-length', len(content))
+    return content
     
+
+class GoogleReverseGeocoder:
+  def GET(self, latitude, longitude):
+    import simplejson
+    from birdnest.glm import get_location_by_geo
+    try:
+      o = simplejson.loads(get_location_by_geo(latitude, longitude))
+      response = {'status': 'OK',
+                  'address': o['Placemark'][0]['address']}
+    except Exception, why:
+      response = {'status': 'ERR',
+                  'message': str(why)}
+    content = simplejson.dumps(response)
+    web.header('content-length', len(content))
+    return content
+
 class NoFilterProxy(BaseProxy, Filter):
   pass
 
@@ -454,6 +489,9 @@ urls  = (
     '/image/(direct_messages/delete/\d+\.xml.*)', 'XMLSingleDirectMessageIncludeImageProxy',
     '/image/(.*)', 'NoFilterOptimizedProxy',
 
+    '/glm/cell/(\d+)/(\d+)', 'GoogleLocationMobile',
+    '/glm/rgeo/([0-9.]+)/([0-9.]+)', 'GoogleReverseGeocoder',
+
     '/(.*)', 'BaseProxy',
     )
 
@@ -486,7 +524,7 @@ try:
                         datefmt='%Y%m%d %H:%M:%S')
         fh.setFormatter(formatter)
         ua_logger.addHandler(fh)
-        app.run(runfcgi)
+        app.run()
 except ImportError:
     if __name__ == "__main__": 
         main = app.cgirun()

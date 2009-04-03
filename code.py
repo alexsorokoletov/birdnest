@@ -109,7 +109,10 @@ class OptimizedProxy(BaseProxy):
                      'cache-control',
                      'set-cookie',
                      'vary',
-                     'connection']
+                     'connection',
+                     'x-transaction',
+                     'x-revision',
+                    ]
 
   def __init__(self):
     BaseProxy.__init__(self)

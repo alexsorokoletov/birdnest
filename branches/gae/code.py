@@ -496,6 +496,7 @@ urls  = (
     )
 
 app = web.application(urls, globals(), autoreload=True)
+application = app.wsgifunc()
 try:
     import flup.server.cgi as flups
     def runfcgi(func, addr=('localhost', 8000)):

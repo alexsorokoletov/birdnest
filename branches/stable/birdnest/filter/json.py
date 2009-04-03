@@ -23,23 +23,44 @@ class StatusesIncludeImage(Filter):
     statuses = simplejson.loads(text)
     for status in statuses:
       for key in unwanted_status:
-        del status[key]
+        if key in status:
+          del status[key]
       for key in unwanted_user:
-        del status['user'][key]
+        if key in status['user']:
+          del status['user'][key]
     return simplejson.dumps(statuses)
 
 class StatusesTextOnly(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
-    unwanted_user = ['description', 'followers_count', 'protected',
-                     'location', 'profile_image_url', 'url']
+    unwanted_user = ['description',
+                     'statuses_count',
+                     'followers_count',
+                     'friends_count',
+                     'favourites_count',
+                     'protected',
+                     'location',
+                     'time_zone',
+                     'url',
+                     'notifications',
+                     'created_at',
+                     'profile_image_url',
+                     'profile_sidebar_fill_color',
+                     'profile_text_color',
+                     'profile_background_color',
+                     'profile_link_color',
+                     'profile_background_image_url',
+                     'profile_background_tile',
+                     'profile_sidebar_border_color']
     statuses = simplejson.loads(text)
     for status in statuses:
       for key in unwanted_status:
-        del status[key]
+        if key in status:
+          del status[key]
       for key in unwanted_user:
-        del status['user'][key]
+        if key in status['user']:
+          del status['user'][key]
       status['source'] = remove_html(status['source'])
     return simplejson.dumps(statuses)
 
@@ -51,22 +72,43 @@ class SingleStatusesIncludeImage(Filter):
                      'location']
     status = simplejson.loads(text)
     for key in unwanted_status:
-      del status[key]
+      if key in status:
+        del status[key]
     for key in unwanted_user:
-      del status['user'][key]
+      if key in status['user']:
+        del status['user'][key]
     return simplejson.dumps(status)
 
 class SingleStatusesTextOnly(Filter):
   def filter(self, text):
     unwanted_status = ['truncated', 'in_reply_to_user_id',
                        'in_reply_to_status_id']
-    unwanted_user = ['description', 'followers_count', 'protected',
-                     'location', 'profile_image_url', 'url']
+    unwanted_user = ['description',
+                     'statuses_count',
+                     'followers_count',
+                     'friends_count',
+                     'favourites_count',
+                     'protected',
+                     'location',
+                     'time_zone',
+                     'url',
+                     'notifications',
+                     'created_at',
+                     'profile_image_url',
+                     'profile_sidebar_fill_color',
+                     'profile_text_color',
+                     'profile_background_color',
+                     'profile_link_color',
+                     'profile_background_image_url',
+                     'profile_background_tile',
+                     'profile_sidebar_border_color']
     status = simplejson.loads(text)
     for key in unwanted_status:
-      del status[key]
+      if key in status:
+        del status[key]
     for key in unwanted_user:
-      del status['user'][key]
+      if key in status['user']:
+        del status['user'][key]
     status['source'] = remove_html(status['source'])
     return simplejson.dumps(status)
 

@@ -26,14 +26,15 @@ class BaseProxy(object):
   unwanted_header = []
 
   def __init__(self):
-    data = ''
-    fd = web.ctx.env['wsgi.input']
-    while 1:
-      chunked = fd.read(10000)
-      if not chunked:
-        break
-      data += chunked
-    web.ctx.data = data
+    if web.ctx.env['REQUEST_METHOD'] == 'POST':
+      data = ''
+      fd = web.ctx.env['wsgi.input']
+      while 1:
+        chunked = fd.read(10000)
+        if not chunked:
+          break
+        data += chunked
+      web.ctx.data = data
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
   def _get_headers(self):
@@ -342,9 +343,9 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
 class GoogleLocationMobile:
   def GET(self, cellid, lac):
     import simplejson
-    from birdnest.glm import get_location
+    from birdnest.glm import get_location_by_cell
     try:
-      lat, long = get_location(int(cellid), int(lac))
+      lat, long = get_location_by_cell(int(cellid), int(lac))
       response = {'status': 'OK',
                   'lat': lat,
                   'long': long}
@@ -355,6 +356,23 @@ class GoogleLocationMobile:
     web.header('content-length', len(content))
     web.webapi.output(content)
     
+
+class GoogleReverseGeocoder:
+  def GET(self, latitude, longitude):
+    import simplejson
+    from birdnest.glm import get_location_by_geo
+    try:
+      o = simplejson.loads(get_location_by_geo(latitude, longitude))
+      response = {'status': 'OK',
+                  'address': o['Placemark'][0]['address']}
+    except Exception, why:
+      response = {'status': 'ERR',
+                  'message': str(why)}
+    content = simplejson.dumps(response)
+    web.header('content-length', len(content))
+    web.webapi.output(content)
+    
+
 
 
 class NoFilterProxy(BaseProxy, Filter):
@@ -469,6 +487,7 @@ urls  = (
     '/image/(.*)', 'NoFilterOptimizedProxy',
 
     '/glm/cell/(\d+)/(\d+)', 'GoogleLocationMobile',
+    '/glm/rgeo/([0-9.]+)/([0-9.]+)', 'GoogleReverseGeocoder',
 
     '/(.*)', 'BaseProxy',
     )

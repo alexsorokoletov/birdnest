@@ -308,7 +308,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
             httpcon.request('POST', '/statuses/update.json', headers=headers, body=qs)
             twitter_response = httpcon.getresponse()
             content = twitter_response.read()
-            logger.debug(content)
+            #logger.debug(content)
             status = simplejson.loads(content)
             response = {'id': status['id']}
           except Exception, why:

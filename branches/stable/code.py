@@ -29,11 +29,13 @@ class BaseProxy(object):
     if web.ctx.env['REQUEST_METHOD'] == 'POST':
       data = ''
       fd = web.ctx.env['wsgi.input']
+      length = int(web.ctx.env.get('CONTENT_LENGTH'), 0)
       while 1:
-        chunked = fd.read(10000)
+        chunked = fd.read(length)
         if not chunked:
           break
         data += chunked
+        length -= len(chunked)
       web.ctx.data = data
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
@@ -128,6 +130,11 @@ class OptimizedProxy(BaseProxy):
     logger.debug(str(headers))
     headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     return headers
+
+  def POST(self, params):
+    if params.startswith('statuses/update.'):
+      web.ctx.data = self.update_filter(web.data())
+    return BaseProxy.POST(self, params)
 
   def sendoutput(self, result):
     content = result.read()

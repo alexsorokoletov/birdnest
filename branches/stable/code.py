@@ -29,13 +29,15 @@ class BaseProxy(object):
     if web.ctx.env['REQUEST_METHOD'] == 'POST':
       data = ''
       fd = web.ctx.env['wsgi.input']
-      length = int(web.ctx.env.get('CONTENT_LENGTH'), 0)
-      while 1:
-        chunked = fd.read(length)
-        if not chunked:
-          break
-        data += chunked
-        length -= len(chunked)
+      if web.ctx.env['SERVER_NAME'] == 'localhost':
+        length = int(web.ctx.env.get('CONTENT_LENGTH', 10000))
+        data = fd.read(length)
+      else:
+        while 1:
+          chunked = fd.read(10000)
+          if not chunked:
+            break
+          data += chunked
       web.ctx.data = data
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 

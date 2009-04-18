@@ -461,6 +461,8 @@ urls  = (
 
     '/text/(statuses/replies\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/replies\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/mentions\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/mentions\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/update\.json.*)', 'JSONSingleStatusesTextOnlyProxy',
     '/text/(statuses/update\.xml.*)', 'XMLSingleStatusesTextOnlyProxy',
     '/text/(direct_messages\.json.*)', 'JSONDirectMessageTextOnlyProxy',
@@ -485,6 +487,8 @@ urls  = (
 
     '/image/(statuses/replies\.json.*)', 'JSONStatusesIncludeImageProxy',
     '/image/(statuses/replies\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/mentions\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/mentions\.xml.*)', 'XMLStatusesIncludeImageProxy',
     '/image/(statuses/update\.json.*)', 'JSONSingleStatusesIncludeImageProxy',
     '/image/(statuses/update\.xml.*)', 'JSONSingleStatusesIncludeImageProxy',
     '/image/(direct_messages\.json.*)', 'JSONDirectMessageIncludeImageProxy',

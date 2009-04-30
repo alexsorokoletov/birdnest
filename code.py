@@ -18,6 +18,12 @@ twitterAPI = "http://twitter.com/"
 logger = logging.getLogger()
 ua_logger = logging.getLogger('useragent')
 
+picture_gateways = {
+  'twitpic': ('twitpic.com', 80, '/'),
+  'twitgoo': ('twitgoo.com', 80, '/'),
+  'upicme': ('upic.me', 80, '/'),
+}
+
 
 class BaseProxy(object):
 
@@ -33,11 +39,15 @@ class BaseProxy(object):
     if web.ctx.env['REQUEST_METHOD'] == 'POST':
       data = ''
       fd = web.ctx.env['wsgi.input']
-      while 1:
-        chunked = fd.read(10000)
-        if not chunked:
-          break
-        data += chunked
+      if web.ctx.env['SERVER_NAME'] == 'localhost':
+        length = int(web.ctx.env.get('CONTENT_LENGTH', 10000))
+        data = fd.read(length)
+      else:
+        while 1:
+          chunked = fd.read(10000)
+          if not chunked:
+            break
+          data += chunked
       web.ctx.data = data
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
@@ -133,6 +143,11 @@ class OptimizedProxy(BaseProxy):
     headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     return headers
 
+  def POST(self, params):
+    if params.startswith('statuses/update.'):
+      web.ctx.data = self.update_filter(web.data())
+    return BaseProxy.POST(self, params)
+
   def sendoutput(self, result):
     content = result.read()
     if result.status == 200:
@@ -227,11 +242,14 @@ class JSONTwitPicProxy(BaseProxy, Filter):
       web.ctx.status = str(result.status)+' '+result.reason
       return content
 
-  def POST(self, params):
+  def POST(self, gateway, params):
     result = None
+    if gateway not in picture_gateways:
+      gateway = 'twitpic'
+    ghost, gport, gbaseurl = picture_gateways[gateway]
     target_url = '/' +params 
     headers = self._get_headers()
-    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    httpcon = httplib.HTTPConnection(ghost, gport)
     #logger.debug(str(headers))
     #logger.debug(web.data())
     try:
@@ -300,6 +318,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
             m = cgi.FieldStorage(fp, environ=environ)
             message = '%s %s' % (m['message'].value, mediaurl)
             qs = urlencode({'status': message, 'source': 'birdnest'})
+            qs = self.update_filter(qs)
             headers = self._get_headers()
             headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
@@ -310,7 +329,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
             httpcon.request('POST', '/statuses/update.json', headers=headers, body=qs)
             twitter_response = httpcon.getresponse()
             content = twitter_response.read()
-            logger.debug(content)
+            #logger.debug(content)
             status = simplejson.loads(content)
             response = {'id': status['id']}
           except Exception, why:
@@ -326,15 +345,18 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
       web.ctx.status = str(result.status)+' '+result.reason
       return content
 
-  def POST(self, params):
+  def POST(self, gateway, params):
     result = None
-    target_url = '/' +params 
+    if gateway not in picture_gateways:
+      gateway = 'twitpic'
+    ghost, gport, gbaseurl = picture_gateways[gateway]
+    target_url = '/'+params 
     headers = self._get_headers()
-    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    httpcon = httplib.HTTPConnection(ghost, gport)
     #logger.debug(str(headers))
     #logger.debug(web.data())
     try:
-      httpcon.request('POST', '/api/upload', headers=headers, body=web.data())
+      httpcon.request('POST', gbaseurl+'api/upload', headers=headers, body=web.data())
       twitter_response = httpcon.getresponse()
       return self.sendoutput(twitter_response)
     except Exception, inst:
@@ -451,6 +473,8 @@ urls  = (
 
     '/text/(statuses/replies\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/replies\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/mentions\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/mentions\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/update\.json.*)', 'JSONSingleStatusesTextOnlyProxy',
     '/text/(statuses/update\.xml.*)', 'XMLSingleStatusesTextOnlyProxy',
     '/text/(direct_messages\.json.*)', 'JSONDirectMessageTextOnlyProxy',
@@ -460,7 +484,8 @@ urls  = (
     '/text/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
-    '/text/twitpic/(api/uploadAndPost.*)', 'JSONTwitPicManualProxy',
+#    '/text/(upicme)/(api/uploadAndPost.*)', 'JSONTwitPicProxy',
+    '/text/(\w+)/(api/uploadAndPost.*)', 'JSONTwitPicManualProxy',
 
     '/text/(.*)', 'NoFilterOptimizedProxy',
 
@@ -475,6 +500,8 @@ urls  = (
 
     '/image/(statuses/replies\.json.*)', 'JSONStatusesIncludeImageProxy',
     '/image/(statuses/replies\.xml.*)', 'XMLStatusesIncludeImageProxy',
+    '/image/(statuses/mentions\.json.*)', 'JSONStatusesIncludeImageProxy',
+    '/image/(statuses/mentions\.xml.*)', 'XMLStatusesIncludeImageProxy',
     '/image/(statuses/update\.json.*)', 'JSONSingleStatusesIncludeImageProxy',
     '/image/(statuses/update\.xml.*)', 'JSONSingleStatusesIncludeImageProxy',
     '/image/(direct_messages\.json.*)', 'JSONDirectMessageIncludeImageProxy',

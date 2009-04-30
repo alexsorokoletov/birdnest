@@ -14,6 +14,12 @@ twitterAPI = "http://twitter.com/"
 logger = logging.getLogger()
 ua_logger = logging.getLogger('useragent')
 
+picture_gateways = {
+  'twitpic': ('twitpic.com', 80, '/'),
+  'twitgoo': ('twitgoo.com', 80, '/'),
+  'upicme': ('upic.me', 80, '/'),
+}
+
 
 class BaseProxy(object):
 
@@ -233,11 +239,14 @@ class JSONTwitPicProxy(BaseProxy, Filter):
       web.ctx.status = str(result.status)+' '+result.reason
       web.webapi.output(content)
 
-  def POST(self, params):
+  def POST(self, gateway, params):
     result = None
+    if gateway not in picture_gateways:
+      gateway = 'twitpic'
+    ghost, gport, gbaseurl = picture_gateways[gateway]
     target_url = '/' +params 
     headers = self._get_headers()
-    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    httpcon = httplib.HTTPConnection(ghost, gport)
     #logger.debug(str(headers))
     #logger.debug(web.data())
     try:
@@ -334,15 +343,18 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
       web.ctx.status = str(result.status)+' '+result.reason
       web.webapi.output(content)
 
-  def POST(self, params):
+  def POST(self, gateway, params):
     result = None
-    target_url = '/' +params 
+    if gateway not in picture_gateways:
+      gateway = 'twitpic'
+    ghost, gport, gbaseurl = picture_gateways[gateway]
+    target_url = '/'+params 
     headers = self._get_headers()
-    httpcon = httplib.HTTPConnection('twitpic.com', 80)
+    httpcon = httplib.HTTPConnection(ghost, gport)
     #logger.debug(str(headers))
     #logger.debug(web.data())
     try:
-      httpcon.request('POST', '/api/upload', headers=headers, body=web.data())
+      httpcon.request('POST', gbaseurl+'api/upload', headers=headers, body=web.data())
       twitter_response = httpcon.getresponse()
       self.sendoutput(twitter_response)
     except Exception, inst:
@@ -472,7 +484,8 @@ urls  = (
     '/text/(direct_messages/new\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/new\.xml.*)', 'XMLSingleDirectMessageTextOnlyProxy',
     '/text/(direct_messages/delete/\d+\.json.*)', 'JSONSingleDirectMessageTextOnlyProxy',
-    '/text/twitpic/(api/uploadAndPost.*)', 'JSONTwitPicManualProxy',
+#    '/text/(upicme)/(api/uploadAndPost.*)', 'JSONTwitPicProxy',
+    '/text/(\w+)/(api/uploadAndPost.*)', 'JSONTwitPicManualProxy',
 
     '/text/(.*)', 'NoFilterOptimizedProxy',
 

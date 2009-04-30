@@ -1,9 +1,14 @@
 import types
 import logging
+
 try:
     import simplejson
 except:
     from django.utils import simplejson 
+
+import re
+from urllib import quote
+
 from birdnest.filter import remove_html
 from birdnest.filter import Filter as _Filter
 

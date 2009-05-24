@@ -22,6 +22,7 @@ picture_gateways = {
   'twitpic': ('twitpic.com', 80, '/'),
   'twitgoo': ('twitgoo.com', 80, '/'),
   'upicme': ('upic.me', 80, '/'),
+  'yfrog': ('yfrog.com', 80, '/'),
 }
 
 

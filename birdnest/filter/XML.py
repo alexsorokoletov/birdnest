@@ -1,6 +1,9 @@
 import types
 import logging
-from xml.etree import ElementTree as ET
+try:
+  from xml.etree import ElementTree as ET
+except ImportError:
+  import elementtree as ET
 from birdnest.filter import Filter as _Filter
 
 class Filter(_Filter):

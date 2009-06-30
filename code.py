@@ -67,6 +67,8 @@ class BaseProxy(object):
       web.ctx.headers = result.getheaders()
       if len(content.strip()) > 0:
         filtered = self.filter(content)
+        web.ctx.headers = filter(lambda i: i[0].lower() != 'content-length', result.getheaders())
+        logger.debug(str(web.ctx.headers))
         web.header('content-length', len(filtered))
         web.webapi.output(filtered)
     else:
@@ -118,6 +120,7 @@ class OptimizedProxy(BaseProxy):
                      'etag',
                      'pragma',
                      'cache-control',
+                     'content-length',
                      'set-cookie',
                      'vary',
                      'connection',

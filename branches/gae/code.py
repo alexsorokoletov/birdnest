@@ -15,7 +15,7 @@ except:
     from django.utils import simplejson 
 
 twitterAPI = "http://twitter.com/"
-logger = logging.getLogger()
+logger = logging.getLogger('debug')
 ua_logger = logging.getLogger('useragent')
 
 picture_gateways = {
@@ -24,6 +24,29 @@ picture_gateways = {
   'upicme': ('upic.me', 80, '/'),
   'yfrog': ('yfrog.com', 80, '/'),
 }
+
+def init_logger():
+  logpath = 'log.txt'
+  logger.setLevel(logging.DEBUG)
+  fh = logging.handlers.RotatingFileHandler(
+    logpath, maxBytes=20*1024*1024, backupCount=5)
+  fh.setLevel(logging.DEBUG)
+  formatter = logging.Formatter(
+    fmt='%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s',
+    datefmt='%Y%m%d %H:%M:%S')
+  fh.setFormatter(formatter)
+  logger.addHandler(fh)
+
+  logpath = 'useragent.txt'
+  ua_logger.setLevel(logging.INFO)
+  fh = logging.handlers.RotatingFileHandler(
+    logpath, maxBytes=20*1024*1024, backupCount=5)
+  fh.setLevel(logging.INFO)
+  formatter = logging.Formatter(
+    fmt='%(asctime)s %(message)s',
+    datefmt='%Y%m%d %H:%M:%S')
+  fh.setFormatter(formatter)
+  ua_logger.addHandler(fh)
 
 
 class BaseProxy(object):
@@ -50,6 +73,7 @@ class BaseProxy(object):
             break
           data += chunked
       web.ctx.data = data
+    logger.info(web.ctx.environ.get('REQUEST_URI', 'None'))
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
 
   def _get_headers(self):
@@ -106,13 +130,13 @@ class BaseProxy(object):
     httpcon = httplib.HTTPConnection('twitter.com', 80)
     try:
       httpcon.request('POST', target_url, headers=headers, body=web.data())
-      twitter_response = httpcon.getresponse()
-      return self.sendoutput(twitter_response)
-    except Exception, inst:
+      result = httpcon.getresponse()
+      return self.sendoutput(result)
+    except Exception, why:
       if result:
-        logger.error("%s\n\n%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data(), twitter_response.read()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s\n\n%s" % (target_url, str(why), headers, web.data(), result.read()))
       else:
-        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data()))
+        logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(why), headers, web.data()))
       web.internalerror()
 
 class OptimizedProxy(BaseProxy):
@@ -139,15 +163,21 @@ class OptimizedProxy(BaseProxy):
       if qs['__token__'] is not None:
         headers['Authorization'] = 'Basic '+qs['__token__']
         del qs['__token__']
-        web.ctx.environ['QUERY_STRING'] = urllib.urlencode(qs)
+        web.ctx.environ['QUERY_STRING'] = web.http.urlencode(qs)
     logger.debug(str(headers))
     headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
     return headers
 
   def POST(self, params):
-    if params.startswith('statuses/update.'):
-      web.ctx.data = self.update_filter(web.data())
-    return BaseProxy.POST(self, params)
+    try:
+      if params.startswith('statuses/update.'):
+        web.ctx.data = self.update_filter(web.data())
+      return BaseProxy.POST(self, params)
+    except Exception, why:
+      import traceback
+      logger.error("%s %s %s" % (params, str(why), web.data()))
+      logger.error(traceback.format_exc())
+      web.internalerror()
 
   def sendoutput(self, result):
     content = result.read()
@@ -157,7 +187,7 @@ class OptimizedProxy(BaseProxy):
         try:
           filtered = self.filter(content)
         except Exception, why:
-          logger.error(str(why))
+          logger.error('%s: %s' % (str(why), content))
           filtered = content
         web.header('content-length', len(filtered))
         return (filtered)
@@ -283,6 +313,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
     del headers['Content-Length']
     logger.debug(str(headers))
     import re
+
     m = re.match(r'multipart/form-data;boundary=([^;]+); charset=UTF-8', headers['Content-Type'])
     if m:
         headers['Content-Type'] = 'multipart/form-data; charset=UTF-8; boundary=%s' % m.group(1)
@@ -526,6 +557,7 @@ urls  = (
 
 app = web.application(urls, globals(), autoreload=True)
 application = app.wsgifunc()
+
 try:
     import flup.server.cgi as flups
     def runfcgi(func, addr=('localhost', 8000)):
@@ -533,27 +565,7 @@ try:
         return flups.WSGIServer(func).run()
 
     if __name__ == "__main__": 
-        logpath = 'log.txt'
-        logger.setLevel(logging.DEBUG)
-        fh = logging.handlers.RotatingFileHandler(
-                 logpath, maxBytes=20*1024*1024, backupCount=5)
-        fh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(
-                        fmt='%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s',
-                        datefmt='%Y%m%d %H:%M:%S')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-
-        logpath = 'useragent.txt'
-        ua_logger.setLevel(logging.INFO)
-        fh = logging.handlers.RotatingFileHandler(
-                 logpath, maxBytes=20*1024*1024, backupCount=5)
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-                        fmt='%(asctime)s %(message)s',
-                        datefmt='%Y%m%d %H:%M:%S')
-        fh.setFormatter(formatter)
-        ua_logger.addHandler(fh)
+        init_logger()
         app.run()
 except ImportError:
     if __name__ == "__main__": 

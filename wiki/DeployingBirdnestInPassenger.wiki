@@ -8,8 +8,11 @@ Currently deployment of http://nest.onedd.net is done using Phusion Passenger. A
 = Steps to deploy =
 
 1. Install Apache and Phusion Passenger.
+
 2. Setup the Application path. eg. /var/nest
+
 3. Check out Birdnest from GAE branch and put it to the Application path from (2). eg. /var/nest/code
+
 4. Create a name with `passenger_wsgi.py` as the bootstrap script. And put following code in the file
 
 {{{

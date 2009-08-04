@@ -11,13 +11,13 @@ Currently deployment of http://nest.onedd.net is done using Phusion Passenger. A
 
 2. Setup the Application path. eg. /var/nest
 
-3. Check out Birdnest from GAE branch and put it to the Application path from (2). eg. /var/nest/code
+3. Check out Birdnest from GAE branch and put it to the Application path from (2). eg. /var/nest/birdnest
 
 4. Create a name with `passenger_wsgi.py` as the bootstrap script. And put following code in the file
 
 {{{
 import os, sys
-path = os.path.abspath(os.path.join(os.path.dirname(__file__), "nest"))
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), "birdnest"))
 sys.path.insert(0, path)
 import code
 code.init_logger()

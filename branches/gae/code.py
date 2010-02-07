@@ -25,19 +25,21 @@ picture_gateways = {
   'yfrog': ('yfrog.com', 80, '/'),
 }
 
-def init_logger():
-  logpath = 'log.txt'
+def init_logger(rootpath=None):
+  import os
+  rootpath = os.path.dirname(os.path.dirname(__file__))
+  logpath = os.path.join(rootpath, 'log.txt')
   logger.setLevel(logging.DEBUG)
   fh = logging.handlers.RotatingFileHandler(
     logpath, maxBytes=20*1024*1024, backupCount=5)
   fh.setLevel(logging.DEBUG)
   formatter = logging.Formatter(
-    fmt='%(asctime)s %(levelname)s %(pathname)s:%(lineno)d %(message)s',
+    fmt='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
     datefmt='%Y%m%d %H:%M:%S')
   fh.setFormatter(formatter)
   logger.addHandler(fh)
 
-  logpath = 'useragent.txt'
+  logpath = os.path.join(rootpath, 'useragent.txt')
   ua_logger.setLevel(logging.INFO)
   fh = logging.handlers.RotatingFileHandler(
     logpath, maxBytes=20*1024*1024, backupCount=5)
@@ -46,6 +48,7 @@ def init_logger():
     fmt='%(asctime)s %(message)s',
     datefmt='%Y%m%d %H:%M:%S')
   fh.setFormatter(formatter)
+
   ua_logger.addHandler(fh)
 
 
@@ -75,6 +78,18 @@ class BaseProxy(object):
       web.ctx.data = data
     logger.info(web.ctx.environ.get('REQUEST_URI', 'None'))
     ua_logger.info(web.ctx.environ.get('HTTP_USER_AGENT', 'None'))
+
+    import socket
+    import re
+    ua = web.ctx.environ.get("HTTP_USER_AGENT", 'None')
+    if ua.find('jibjib') >= 0:
+      socket.setdefaulttimeout(60)
+    elif ua.find('zh-CN') >= 0:
+      #raise Exception('unknown error')
+      socket.setdefaulttimeout(2)
+    else:
+      socket.setdefaulttimeout(2)
+
 
   def _get_headers(self):
     headers = {}
@@ -310,7 +325,8 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
     headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
-    del headers['Content-Length']
+    if 'Content-Length' in headers:
+      del headers['Content-Length']
     logger.debug(str(headers))
     import re
 
@@ -496,6 +512,8 @@ urls  = (
     '/text/(statuses/user_timeline/\w+\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/public_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
+    '/text/(statuses/home_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
+    '/text/(statuses/home_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/user_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',
     '/text/(statuses/user_timeline\.xml.*)', 'XMLStatusesTextOnlyProxy',
     '/text/(statuses/friends_timeline\.json.*)', 'JSONStatusesTextOnlyProxy',

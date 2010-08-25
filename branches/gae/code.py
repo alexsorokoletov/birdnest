@@ -6,6 +6,7 @@ import traceback
 import web
 import httplib
 import urllib
+
 from birdnest.filter import Filter
 from birdnest.filter import json
 from birdnest.filter import XML
@@ -14,7 +15,7 @@ try:
 except:
     from django.utils import simplejson 
 
-twitterAPI = "http://twitter.com/"
+twitterAPI = "https://api.twitter.com/1"
 logger = logging.getLogger('debug')
 ua_logger = logging.getLogger('useragent')
 
@@ -58,7 +59,8 @@ class BaseProxy(object):
                      'User-Agent',
                      'X-Twitter-Client',
                      'X-Twitter-Client-URL',
-                     'X-Twitter-Client-Version']
+                     'X-Twitter-Client-Version',
+                     ]
 
   unwanted_header = []
 
@@ -89,7 +91,19 @@ class BaseProxy(object):
       socket.setdefaulttimeout(2)
     else:
       socket.setdefaulttimeout(2)
+    self.init_api()
+    
+  def init_api(self):
+    from urlparse import urlparse
+    self.parsed_endpoint = urlparse(twitterAPI)
 
+  def get_connection(self):
+    if self.parsed_endpoint:
+      if self.parsed_endpoint.scheme == 'https':
+        return httplib.HTTPSConnection(self.parsed_endpoint.netloc)
+      else:
+        return httplib.HTTPConnection(self.parsed_endpoint.netloc)
+      
 
   def _get_headers(self):
     headers = {}
@@ -121,11 +135,12 @@ class BaseProxy(object):
     result = None
     headers = self._get_headers()
 
-    target_url = '/' +params 
+    target_url = "%s/%s" % (self.parsed_endpoint.path, params)
     if web.ctx.environ.get('QUERY_STRING', None):
       target_url += '?'+web.ctx.environ['QUERY_STRING']
-    httpcon = httplib.HTTPConnection('twitter.com', 80)
+    httpcon = self.get_connection()
     try:
+      logger.debug(httpcon)
       httpcon.request('GET', target_url, headers=headers)
       twitter_response = httpcon.getresponse()
       return self.sendoutput(twitter_response)
@@ -135,14 +150,12 @@ class BaseProxy(object):
       else:
         logger.error("%s\n\n%s\n\n%s\n\n%s" % (target_url, str(inst), headers, web.data()))
       web.internalerror()
-      
-
 
   def POST(self, params):
     result = None
     target_url = '/' +params 
     headers = self._get_headers()
-    httpcon = httplib.HTTPConnection('twitter.com', 80)
+    httpcon = self.get_connection()
     try:
       httpcon.request('POST', target_url, headers=headers, body=web.data())
       result = httpcon.getresponse()
@@ -176,7 +189,7 @@ class OptimizedProxy(BaseProxy):
     if 'Authorization' not in headers:
       qs = web.input(__token__=None)
       if qs['__token__'] is not None:
-        headers['Authorization'] = 'Basic '+qs['__token__']
+        headers['Authorization'] = 'OAuth '+qs['__token__']
         del qs['__token__']
         web.ctx.environ['QUERY_STRING'] = web.http.urlencode(qs)
     logger.debug(str(headers))
@@ -257,7 +270,7 @@ class JSONTwitPicProxy(BaseProxy, Filter):
   def _get_headers(self):
     headers = BaseProxy._get_headers(self)
     headers['Content-Type'] = web.ctx.environ['CONTENT_TYPE']
-    logger.debug(str(headers))
+    #logger.debug(str(headers))
     return headers
 
   def parse_response(self, response):
@@ -372,7 +385,7 @@ class JSONTwitPicManualProxy(BaseProxy, Filter):
             headers['User-Agent'] = 'curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1'
             headers['Content-Type'] = 'application/x-www-form-urlencoded'
             headers['Authorization'] = 'Basic '+base64.encodestring(m['username'].value+':'+m['password'].value)[:-1]
-            httpcon = httplib.HTTPConnection('twitter.com', 80)
+            httpcon = self.get_connection()
             logger.debug(str(headers))
             logger.debug(qs)
             httpcon.request('POST', '/statuses/update.json', headers=headers, body=qs)
